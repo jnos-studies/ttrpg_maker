@@ -10,5 +10,5 @@ edition = "2021"
 [workspace]
 members = [
 	"roll_dice",
-	"entities_and_narratives"
+	"narratives"
 ]
