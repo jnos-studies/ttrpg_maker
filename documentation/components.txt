@@ -1,0 +1,85 @@
+Component structures:
+
+A ttrpg consists of a variable amount of components which,
+at the point of writing this, are deduced to amount to the following,
+
+-Buffs (on self)
+-Debuffs (offensive, incurred)
+-Descriptions (entity / global)
+-Rolled tables
+-Narratives
+-Skills / Feats
+-Attributes
+-Counters (ie: health, stamina, base_damage)
+-Time
+-Tokens
+
+These 10 components constitute an acting entity in ttrpg games.
+As an example:
+PCs, NPCs, Monsters, environment, durations in combat. In a gameplay
+session players and monsters can act upon other entity's
+Counter variables, ie: points in a health bar. They can also
+cause debuffs,  buffs which affect conditions or their skills and
+what they are able to do during their Time.
+
+The aim is not to create rules, but to generate rulesets for
+ttrpgs to easily follow through these entities and their
+commensurate components.
+
+
+Entity Narratives and Global Narratives:
+
+There is a difference between an entity narrative, and a global
+narrative. Entity narratives can be seen as about entity itself and it's
+relationship to the global narrative. For example, a short sword might
+have the following components,
+
+SHORTSWORD
+entity_description: "good for slashy stabby times!",
+global_ description: "cast by the murk goblins of Yorr!"
+
+global narratives should be used for plot and events.
+
+
+Entities within Entities:
+
+Entities can hold other entities within themselves; a NPC, PC, or treasure
+chest could all hold items/entities eith there own descriptions, buffs,
+debuffs etc.
+
+Entity types and inheritance:
+
+Entities can be anything, the GM is the one who makes the categories.
+There could be an Entity to simply describe a race/tribe of people
+with there own buffs, debuffs, and skills. GMs will be able to use
+their self made categories to act as parents to other entities.
+ie: a PC is an Elf which, because of that, the PC gets the buffs on
+specific attributes and skills passed on from the parent entity.
+
+
+
+Counters:
+
+Counters inform most of the logic surrounding rule creation and could
+almost be considered as the nervous system  which connects entities
+and their internal parts. Buffs and debuffs are nothing other than
+positive or negative Counter on a skill or attribute, which could
+affect a player's dice roll. Buffs and Debuffs could then be considered
+types of Counters.
+
+
+Rolled Tables:
+
+I include initiative mechanics as a type of rolled table. It doesn't
+deserve it's own component as different mechanics utilize the rolling
+sequences differently. A notable comparison is between D&D and Dragonbane;
+in D&D one rolls on a skill with bonuses (or buffs) based on attributes,
+where in Dragonbane initiative is through cards amd player choice.
+The sort of mechanic presented in dragon bane introduces an additional
+feature known as Tokens.
+
+Tokens:
+
+Tokens are akin to game peices. Anything that is supposed to flip (like
+cards) mark conditions to keep track of, peices on a map (a feature of
+which could be implemented later.
