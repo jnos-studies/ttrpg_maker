@@ -10,4 +10,7 @@ Cargo.lock
 **/*.rs.bk
 
 #ignore swap files
-*.swp
+**/*.swp
+
+#Ignore download of whisper.ccp
+whisper.cpp
