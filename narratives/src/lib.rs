@@ -1,7 +1,8 @@
 use roll_dice::*;
+use pithy;
 
 trait AutoText {
-    fn summarize(&mut self, text: &mut TypedNarrative) -> String;
+    fn summarize(&mut self, text: &mut TypedNarrative) -> Option<pithy::Sentence>;
 }
 
 trait Rolled {
@@ -10,7 +11,7 @@ trait Rolled {
 
 // literally raw, original text
 pub struct TypedNarrative {
-    text: String,
+    pub text: String,
 }
 
 impl TypedNarrative {
@@ -22,21 +23,28 @@ impl TypedNarrative {
 }
 
 pub struct AutoNarrative {
-    summary: String,
+    pub summary: String,
 }
 
 impl AutoNarrative {
     pub fn new(&mut self, text: &mut TypedNarrative) -> AutoNarrative {
+
         let summary = self.summarize(text);
-        AutoNarrative {
-            summary
+        
+        match summary {
+            Some(s) => AutoNarrative { summary: s.text},
+            None => AutoNarrative { summary:  "no summary available".to_string()}
         }
     }
 }
 impl AutoText for AutoNarrative {
-    fn summarize(&mut self, text: &mut TypedNarrative) -> String {
-        let summary = text.text.clone(); // later actually summarize. Functionality is not implemented yet
-        summary
+    fn summarize(&mut self, text: &mut TypedNarrative) -> Option<pithy::Sentence> {
+        let mut summary = pithy::Summariser::new();
+        summary.add_raw_text("../n.txt".to_string(), text.text.clone(), ",",30, 500, false);
+        let result = summary.retrieve_sentence_by_index(0);
+
+        result
+        
     }
 }
 
