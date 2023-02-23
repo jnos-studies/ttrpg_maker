@@ -23,10 +23,17 @@ fn can_create_and_retrive_texts() {
 fn can_create_summaries_of_large_text_using_pithy() -> std::io::Result<()>{
         let mut file = File::open("samples.txt")?;
         let mut contents = String::new();
-
         file.read_to_string(&mut contents)?;
+        
+        let typed_narrative = Some(TypedNarrative::new(contents.clone()));
+        let auto_narrative = Some(AutoNarrative::new(TypedNarrative::new(contents.clone())));
+        
+        println!("\n\nSummary \n\n {:#?}", auto_narrative);
+        
+        assert!(
+            typed_narrative.is_some() &&
+            auto_narrative.is_some()
+            );
 
-        println!("Contents to use \n \n {}", contents);
-        assert_eq!(1,1);
         Ok(())
 }

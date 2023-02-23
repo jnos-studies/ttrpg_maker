@@ -1,12 +1,9 @@
+use std::collections::{HashMap, hash_map::RandomState};
 use roll_dice::*;
 use pithy;
 
-trait AutoText {
-    fn summarize(&mut self, text: &mut TypedNarrative) -> Option<pithy::Sentence>;
-}
-
 trait Rolled {
-    fn roll_to_text(roll: &Roll) -> String;
+    fn roll_to_text(&mut self, roll: &Roll) -> String;
 }
 
 // literally raw, original text
@@ -22,28 +19,23 @@ impl TypedNarrative {
     }
 }
 
+#[derive(Debug)]
 pub struct AutoNarrative {
-    pub summary: String,
+    pub summary: HashMap<usize, pithy::Sentence, RandomState>,
 }
-
 impl AutoNarrative {
-    pub fn new(&mut self, text: &mut TypedNarrative) -> AutoNarrative {
-
-        let summary = self.summarize(text);
+    pub fn new(text: TypedNarrative) -> AutoNarrative {
+        let summary = AutoNarrative::summarize(text, 100, 300);
         
-        match summary {
-            Some(s) => AutoNarrative { summary: s.text},
-            None => AutoNarrative { summary:  "no summary available".to_string()}
+        AutoNarrative {
+            summary
         }
     }
-}
-impl AutoText for AutoNarrative {
-    fn summarize(&mut self, text: &mut TypedNarrative) -> Option<pithy::Sentence> {
+    //Will summarize and return all of the summarized sentences to which bias can be implemented
+    fn summarize(text: TypedNarrative, min: usize, max: usize) -> HashMap<usize, pithy::Sentence> {
         let mut summary = pithy::Summariser::new();
-        summary.add_raw_text("../n.txt".to_string(), text.text.clone(), ",",30, 500, false);
-        let result = summary.retrieve_sentence_by_index(0);
-
-        result
+        summary.add_raw_text("".to_string(), text.text.clone(), ",", min, max, false);
+        summary.sentences
         
     }
 }
