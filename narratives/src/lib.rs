@@ -2,10 +2,6 @@ use std::collections::{HashMap, hash_map::RandomState};
 use roll_dice::*;
 use pithy;
 
-trait Rolled {
-    fn roll_to_text(&mut self, roll: &Roll) -> String;
-}
-
 // literally raw, original text
 pub struct TypedNarrative {
     pub text: String,
@@ -41,5 +37,35 @@ impl AutoNarrative {
 }
 
 
-pub struct TabledNarratives;
+pub struct TabledNarratives {
+    table: HashMap<(u32, u32), String>
+}
+
+impl TabledNarratives {
+    // 2 values are kept as the key, in order to handle roll limits/ ranges. ie: if a roll is within
+    // the range of 1..=10 print etc.
+    pub fn new(table: Vec<((u32, u32), String)>) -> TabledNarratives {
+        let hashmap: HashMap<(u32, u32), String> = table.iter().cloned().fold(HashMap::new(), |mut acc, (k, v)| {
+            acc.insert(k, v.to_string());
+            acc
+        });
+        TabledNarratives {
+            table: hashmap
+        }
+    }
+
+    pub fn roll_to_text(&self, roll: &Outcome) -> String {
+        let roll_result: u32 = roll.base_result;
+        let mut result: String = String::from("");
+        for (range, value) in self.table.iter() {
+            if roll_result >= range.0 && roll_result <= range.1 {
+                result = value.clone();
+            }
+        }
+        if result.len() == 0 {
+            panic!("Roll failed to produce a value.");
+        }
+        result
+    }
+}
 
