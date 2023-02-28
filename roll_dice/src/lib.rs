@@ -50,7 +50,7 @@ pub struct Outcome {
     pub base_result: u32,
     max: u32,
     min: u32,
-    attribute: bool,
+    pub attribute: bool,
     critical: u32
 }
     
