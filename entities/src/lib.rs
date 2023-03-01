@@ -1,28 +1,6 @@
 use roll_dice::*;
 use narratives::*;
 
-// 
-pub trait Entity {
-    fn create(&self);
-}
-
-pub struct Interface {
-    pub components: Vec<Box<dyn Entity>>
-}
-
-impl Interface {
-    // create is implemented elsewhere when defining all of the components that make up a
-    // single interface
-    fn create(&self) {
-        for component in self.components.iter() {
-            component.create();
-        }
-    }
-}
-
-// Public structs that are components to the Interface
-// A single interface could represent a character sheet, an NPC etc.
-
 // Story
 pub struct Story {
     pub raw_narration: String,
@@ -64,16 +42,43 @@ pub struct Skill {
     pub roll: Roll
 }
 
+impl Skill {
+    pub fn new(description: TypedNarrative, roll: Roll) -> Skill {
+        Skill {
+            description,
+            roll
+        }
+    }
+}
+
 // Counter
 pub struct Counter {
     pub description: TypedNarrative,
     pub number: u32
 }
 
+impl Counter {
+    pub fn new(description: TypedNarrative, number: u32) -> Counter {
+        Counter {
+            description,
+            number
+        }
+    }
+
+}
 // Table
 pub struct Table {
     pub description: TypedNarrative,
     pub table: TabledNarratives
+}
+
+impl Table {
+    pub fn new(description: TypedNarrative, table: TabledNarratives) -> Table {
+        Table {
+            description,
+            table
+        }
+    }
 }
 
 
