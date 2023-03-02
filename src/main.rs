@@ -1,6 +1,6 @@
 #![allow(clippy::uninlined_format_args)]
 
-use hound::{SampleFormat, WavReader, Sample};
+use hound::{SampleFormat, WavReader};
 use std::path::Path;
 use std::error::Error;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext};
@@ -28,11 +28,17 @@ fn parse_wav_file(path: &Path) -> Vec<i16> {
         .collect::<Vec<_>>()
 }
 
+// Converts mono i32 .wav audio into i16
 fn convert_to_correct_sample_rate(path: &Path) -> Result<(), Box<dyn Error>> {
     let mut reader = hound::WavReader::open(path)?;
+
+    let new_sample_rate = 16_000;
+    // speed up after conversion to i16
+    let ratio = 5.0;
+
     let spec = hound::WavSpec {
         channels: 1,
-        sample_rate: 16000,
+        sample_rate: new_sample_rate,
         bits_per_sample: 16,
         sample_format: hound::SampleFormat::Int,
     };
@@ -44,11 +50,16 @@ fn convert_to_correct_sample_rate(path: &Path) -> Result<(), Box<dyn Error>> {
 
     let mut writer = hound::WavWriter::create(output_path, spec)?;
     
-    for sample in reader.samples::<i32>() {
-        let sample = sample.unwrap();
-        let sample_16 = sample.as_i16();
-        writer.write_sample(sample_16).unwrap();
+    for (i, sample) in reader.samples::<i16>().enumerate() {
+        if i % 2 == 0 {
+            let sample = sample.unwrap();
+            let resampled_sample = (sample as f64 * ratio) as i16;
+            writer.write_sample(resampled_sample).unwrap();
+        }
     }
+
+    drop(reader);
+    writer.finalize().unwrap();
     Ok(())
 }
 
