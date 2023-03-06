@@ -9,14 +9,13 @@ edition = "2021"
 eframe = "0.21.3"
 egui = "0.21.0"
 egui_winit_platform = "0.18.0"
-hound = "3.5.0"
-whisper-rs = "0.4.0"
 winit = "0.28.1"
-
+libtext = {path = "libtext"}
 
 [workspace]
 members = [
 	"roll_dice",
 	"narratives",
-	"entities"
+	"entities",
+	"libtext"
 ]
