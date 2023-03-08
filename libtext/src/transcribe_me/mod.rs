@@ -1,9 +1,8 @@
-use hound::{SampleFormat, WavReader};
 use std::path::Path;
-use std::error::Error;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext};
 use narratives::TypedNarrative;
-
+use hound::{SampleFormat, WavReader};
+use std::error::Error;
 // Helper Functions for the transcribe_audio_file public function
 fn parse_wav_file(path: &Path) -> Vec<i16> {
     let reader = WavReader::open(path).expect("failed to read file");
@@ -14,7 +13,6 @@ fn parse_wav_file(path: &Path) -> Vec<i16> {
     if reader.spec().sample_format != SampleFormat::Int {
         panic!("expected integer sample format");
     }
-    println!("Sample rate: {}", reader.spec().sample_rate);
     if reader.spec().sample_rate != 16000 {
         panic!("expected 16KHz sample rate");
     }
@@ -28,10 +26,9 @@ fn parse_wav_file(path: &Path) -> Vec<i16> {
         .collect::<Vec<_>>()
 }
 
-// Converts mono i32 .wav audio into i16 samples
 fn convert_to_correct_sample_rate(path: &Path) -> Result<(), Box<dyn Error>> {
     let mut reader = hound::WavReader::open(path)?;
-
+    println!("Specs: {:#?}", reader.spec());
     let new_sample_rate = 16_000;
     // speed up after conversion to i16
     let ratio = 5.0;
@@ -64,10 +61,13 @@ fn convert_to_correct_sample_rate(path: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn transcribe_audio_file(audio_file: &str) -> TypedNarrative {
-    convert_to_correct_sample_rate(Path::new(audio_file)).expect("Unable to convert .wav file"); 
-    let path_len = audio_file.len();
-    let audio_output_path = format!("{}_output.wav", &audio_file[..path_len - 4]);
-    let audio_output_path = Path::new(&audio_output_path);
+    let path_string = audio_file.to_string();
+    let path_len = &path_string.len();
+    let output_string = format!("{}_output.wav", &path_string[..path_len - 4]);
+
+    convert_to_correct_sample_rate(Path::new(&audio_file)).expect("unable to convert .wav file"); 
+    
+    let audio_output_path = Path::new(&output_string);
     let whisper_path = Path::new("whisper.cpp/models/ggml-base.en.bin");
     
     let original_samples = parse_wav_file(audio_output_path);
