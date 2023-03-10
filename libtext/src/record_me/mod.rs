@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
 
-pub fn record_audio() -> Result<(), anyhow::Error> {
+pub fn record_audio(file_name: &str) -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
 
     // Set up the input device and stream with the default input config.
@@ -18,7 +18,6 @@ pub fn record_audio() -> Result<(), anyhow::Error> {
     println!("Default input config: {:?}", config);
 
     // The WAV file we're recording to.
-    const PATH: &str = "recorded.wav";
     let spec = WavSpec {
         channels: 1,
         sample_rate: 44_100,
@@ -26,7 +25,7 @@ pub fn record_audio() -> Result<(), anyhow::Error> {
         sample_format: hound::SampleFormat::Int
     };
 
-    let writer = hound::WavWriter::create(PATH, spec)?;
+    let writer = hound::WavWriter::create(file_name, spec)?;
     let writer = Arc::new(Mutex::new(Some(writer)));
 
     // A flag to indicate that recording is in progress.
@@ -48,11 +47,11 @@ pub fn record_audio() -> Result<(), anyhow::Error> {
 
     stream.play()?;
 
-    // Let recording go for roughly three seconds.
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    // Let recording go for roughly 10 seconds.
+    std::thread::sleep(std::time::Duration::from_secs(10));
     drop(stream);
     writer.lock().unwrap().take().unwrap().finalize()?;
-    println!("Recording {} complete!", PATH);
+    println!("Recording {} complete!", file_name);
     Ok(())
 }
 

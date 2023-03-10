@@ -1,8 +1,8 @@
 use std::path::Path;
+use std::i16;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext};
 use narratives::TypedNarrative;
 use hound::{SampleFormat, WavReader};
-use std::error::Error;
 // Helper Functions for the transcribe_audio_file public function
 fn parse_wav_file(path: &Path) -> Vec<i16> {
     let reader = WavReader::open(path).expect("failed to read file");
@@ -26,50 +26,48 @@ fn parse_wav_file(path: &Path) -> Vec<i16> {
         .collect::<Vec<_>>()
 }
 
-fn convert_to_correct_sample_rate(path: &Path) -> Result<(), Box<dyn Error>> {
-    let mut reader = hound::WavReader::open(path)?;
-    println!("Specs: {:#?}", reader.spec());
-    let new_sample_rate = 16_000;
-    // speed up after conversion to i16
-    let ratio = 2.0;
 
+fn convert_sample_rate(file_name: &str) -> Result<(), hound::Error> {
+    // Open the input WAV file
+    let mut reader = hound::WavReader::open(file_name)?;
+    assert_eq!(reader.spec().channels, 1);
+    assert_eq!(reader.spec().sample_format, hound::SampleFormat::Int);
+
+    // Set up the output WAV file with the new sample rate store in test_wavs for now
+    let output_file_name = format!("test_wavs/{}_output.wav", Path::new(file_name).file_stem().unwrap().to_str().unwrap());
     let spec = hound::WavSpec {
         channels: 1,
-        sample_rate: new_sample_rate,
+        sample_rate: 16000,
         bits_per_sample: 16,
         sample_format: hound::SampleFormat::Int,
     };
+    let mut writer = hound::WavWriter::create(output_file_name, spec)?;
 
-    let path_to_string = path.to_string_lossy();
-    let path_len = path_to_string.len();
-
-    let output_path = format!("{}_output.wav", &path_to_string[..path_len - 4]);
-
-    let mut writer = hound::WavWriter::create(output_path, spec)?;
-    
+    // Read samples from the input file and write them to the output file
+    // Convert to correct sampleby only writting every nth sample, where n
+    // is the ratio of the input and output sample rates
+    const N: usize = 5;
+    let ratio = reader.spec().sample_rate as f32 / writer.spec().sample_rate as f32;
     for (i, sample) in reader.samples::<i16>().enumerate() {
-        if i % 2 == 0 {
+        if i % N == 0 {
             let sample = sample.unwrap();
-            let resampled_sample = (sample as f64 * ratio) as i16;
+            let resampled_sample = (sample as f32 * ratio) as i16;
             writer.write_sample(resampled_sample).unwrap();
         }
     }
-
-    drop(reader);
-    writer.finalize().unwrap();
     Ok(())
 }
+
 
 pub fn transcribe_audio_file(audio_file: &str) -> TypedNarrative {
     let path_string = audio_file.to_string();
     let path_len = &path_string.len();
     let output_string = format!("{}_output.wav", &path_string[..path_len - 4]);
 
-    convert_to_correct_sample_rate(Path::new(&audio_file)).expect("unable to convert .wav file"); 
+    convert_sample_rate(&audio_file).expect("unable to convert .wav file"); 
     
     let audio_output_path = Path::new(&output_string);
     let whisper_path = Path::new("whisper.cpp/models/ggml-base.en.bin");
-    
     let original_samples = parse_wav_file(audio_output_path);
     let samples = whisper_rs::convert_integer_to_float_audio(&original_samples);
 

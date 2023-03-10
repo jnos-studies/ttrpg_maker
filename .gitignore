@@ -12,7 +12,7 @@ Cargo.lock
 #ignore swap files
 **/*.swp
 
-#ignore .wav files
+#ignore .wav files that are recorded
 **/*.wav
 
 #Ignore download of whisper.ccp
