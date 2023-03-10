@@ -10,5 +10,5 @@ hound = "3.5.0"
 whisper-rs = "0.4.0"
 narratives = {path = "../narratives"}
 log = "0.4.17"
-cpal = "0.15.0"
 anyhow = "1.0.69"
+cpal = "0.15.0"

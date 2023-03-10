@@ -1,10 +1,8 @@
 use libtext;
-use std::path::Path;
 
 fn main(){
-    let record_path = Path::new("test2.wav");
-    libtext::record_audio(record_path).unwrap();
-    let test = libtext::transcribe_audio_file("test.wav");    
+    libtext::record_audio().expect("Recording Failure");
+    let test = libtext::transcribe_audio_file("recorded.wav");    
     println!("Audio file transcribed: {}", test.text);
 }
 

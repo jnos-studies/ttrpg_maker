@@ -31,7 +31,7 @@ fn convert_to_correct_sample_rate(path: &Path) -> Result<(), Box<dyn Error>> {
     println!("Specs: {:#?}", reader.spec());
     let new_sample_rate = 16_000;
     // speed up after conversion to i16
-    let ratio = 5.0;
+    let ratio = 2.0;
 
     let spec = hound::WavSpec {
         channels: 1,
