@@ -11,11 +11,13 @@ egui = "0.21.0"
 egui_winit_platform = "0.18.0"
 winit = "0.28.1"
 libtext = {path = "libtext"}
+store_rpg = {path = "store_rpg"}
 
 [workspace]
 members = [
 	"roll_dice",
 	"narratives",
 	"entities",
-	"libtext"
+	"libtext",
+	"store_rpg"
 ]
