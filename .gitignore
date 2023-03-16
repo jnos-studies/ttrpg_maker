@@ -20,3 +20,6 @@ whisper.cpp
 
 #ignore the testing samples used to test summary
 samples.txt
+
+#Ignore the saves directory for testing saves
+/saves

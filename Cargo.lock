@@ -2459,6 +2459,7 @@ dependencies = [
  "egui",
  "egui_winit_platform",
  "libtext",
+ "store_rpg",
  "winit",
 ]
 

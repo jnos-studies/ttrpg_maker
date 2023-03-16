@@ -10,8 +10,8 @@ eframe = "0.21.3"
 egui = "0.21.0"
 egui_winit_platform = "0.18.0"
 winit = "0.28.1"
-libtext = {path = "libtext"}
-store_rpg = {path = "store_rpg"}
+libtext = {path = "./libtext"}
+store_rpg = {path = "./store_rpg"}
 
 [workspace]
 members = [
