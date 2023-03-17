@@ -7,9 +7,9 @@ trait DiceRoll {
 
 #[derive(Debug)]
 pub struct Roll {
-    dice_label: String,
-    dice: u32,
-    amount: u32
+    pub dice_label: String,
+    pub dice: u32,
+    pub amount: u32
 }
 
 impl Roll {

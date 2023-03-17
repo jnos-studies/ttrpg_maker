@@ -2458,6 +2458,7 @@ dependencies = [
  "eframe",
  "egui",
  "egui_winit_platform",
+ "entities",
  "libtext",
  "store_rpg",
  "winit",

@@ -1,24 +1,26 @@
+use std::fmt::format;
 use sqlite;
-//use entities::*;
 
-pub fn save_entity<T>(entity:T, database_path: &str) {
+
+pub fn save_entity<T: 'static>(entity: T, database_path: &str, campaign_id: &str) {
     let connection = sqlite::Connection::open(database_path).unwrap();
-
-    connection.execute("INSERT INTO ttrpgs(name) VALUES('test')").unwrap();
-    let mut ttrpgs = Vec::new();
-
-    connection.iterate("SELECT id, name, date FROM ttrpgs", |row| {
-    ttrpgs.push(
-        (
-            row[0].1.unwrap().to_string(),
-            row[1].1.unwrap().to_string(),
-            row[2].1.unwrap().to_string(),
-        )
-    );
-    true
-}).unwrap();
     
-    println!("{:#?}", ttrpgs);
+    //connection.execute("INSERT INTO ttrpgs(name) VALUES('test')").unwrap();
+    
+    //let mut ttrpgs = Vec::new();
+
+    //connection.iterate("SELECT id, name, date FROM ttrpgs", |row| {
+    //ttrpgs.push(
+        //(
+            //row[0].1.unwrap().to_string(),
+            //row[1].1.unwrap().to_string(),
+            //row[2].1.unwrap().to_string(),
+        //)
+    //);
+    //true
+    //}).unwrap();
+    //
+    //println!("{:#?}", ttrpgs);
 }
 
 pub fn database_setup(database_path: &str) { 
@@ -49,14 +51,12 @@ pub fn database_setup(database_path: &str) {
         attribute_id INTEGER NOT NULL,
         roll_description TEXT NOT NULL,
         base_result INTEGER NOT NULL,
-        max INTEGER NOT NULL,
-        min INTEGER NOT NULL,
         FOREIGN KEY (attribute_id) REFERENCES attributes(id)
     )").expect("Could not create table");
     
     connection.execute("CREATE TABLE rolls (
         ttrpg_id INTEGER NOT NULL,
-        skill_id INTEGER,
+        skill_id INTEGER AUTOINCREMENT,
         blank_roll INTEGER NOT NULL,
         dice_label TEXT NOT NULL,
         dice INTEGER NOT NULL,

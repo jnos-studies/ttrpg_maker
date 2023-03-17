@@ -1,6 +1,7 @@
 use roll_dice::*;
 use narratives::*;
 
+
 // Story
 pub struct Story<'a> {
     pub label_id: &'a str,
@@ -93,5 +94,3 @@ impl Table<'_> {
         }
     }
 }
-
-
