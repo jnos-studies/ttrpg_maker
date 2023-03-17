@@ -2,8 +2,6 @@ use narratives::*;
 use entities::*;
 use roll_dice::{Roll, Outcome, Critical};
 
-const LABEL: &str = "Test_label";
-
 #[test]
 fn story_component_created_with_raw_and_summarized_text() {
     let raw_text = TypedNarrative::new(
@@ -15,7 +13,7 @@ fn story_component_created_with_raw_and_summarized_text() {
             then it kind of loses the point of creating this whole thing.".to_string()
     );
 
-    let story_component = Story::new(raw_text, &LABEL);
+    let story_component = Story::new(raw_text);
     
     let summary = &story_component
         .summarized.summary
@@ -40,7 +38,7 @@ fn attribute_component_created_with_outcome() {
     // necesarily a part of an attribute component
     let outcome = Outcome::new(&roll, &crit, 0, true);
 
-    let attribute = Attribute::new(test_attribute_string, outcome, &LABEL);
+    let attribute = Attribute::new(test_attribute_string, outcome);
 
     // test the attribute outcome against opposing roll, ie opposing roll between the same skills
     let opposing_roll = Outcome::new(&roll, &crit, 0, true);
@@ -59,7 +57,7 @@ fn attribute_component_created_with_outcome() {
 fn skill_created_and_returns_a_roll_and_description() {
     let description = TypedNarrative::new(String::from("This is a skill"));
     let roll = Roll::new(4, 1);
-    let skill = Skill::new(description, roll, &LABEL);
+    let skill = Skill::new(description, roll);
     let skill_description = Some(&skill.description.text);
     let skill_roll = Some(&skill.roll);
     
@@ -73,7 +71,7 @@ fn skill_created_and_returns_a_roll_and_description() {
 #[test]
 fn counter_created_and_returns_description_and_number_that_can_change() {
     let counter_description = TypedNarrative::new(String::from("This is a Counter"));
-    let mut counter = Counter::new(counter_description, 4, &LABEL);
+    let mut counter = Counter::new(counter_description, 4);
 
     counter.change_number(2);
 
@@ -94,7 +92,7 @@ fn create_table_that_returns_table_with_description(){
     ];
 
     let table_narrative = TabledNarratives::new(table_values);
-    let table = Table::new(table_description, table_narrative, &LABEL);
+    let table = Table::new(table_description, table_narrative);
 
     let roll = Roll::new(3, 1);
     let crit = Critical::One;

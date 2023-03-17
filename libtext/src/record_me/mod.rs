@@ -48,7 +48,7 @@ pub fn record_audio(file_name: &str) -> Result<(), anyhow::Error> {
     stream.play()?;
 
     // Let recording go for roughly 10 seconds.
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(30));
     drop(stream);
     writer.lock().unwrap().take().unwrap().finalize()?;
     println!("Recording {} complete!", file_name);

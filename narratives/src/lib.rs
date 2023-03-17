@@ -38,7 +38,7 @@ impl AutoNarrative {
 
 
 pub struct TabledNarratives {
-    table: HashMap<(u32, u32), String>
+    pub table: HashMap<(u32, u32), String>
 }
 
 impl TabledNarratives {

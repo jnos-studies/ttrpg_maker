@@ -13,6 +13,9 @@ winit = "0.28.1"
 libtext = {path = "./libtext"}
 store_rpg = {path = "./store_rpg"}
 entities = {path = "./entities"}
+narratives = {path = "./narratives"}
+sqlite = "0.30.4"
+regex = "1.7.1"
 
 [workspace]
 members = [

@@ -1,27 +1,3 @@
-use std::fmt::format;
-use sqlite;
-
-
-pub fn save_entity<T: 'static>(entity: T, database_path: &str, campaign_id: &str) {
-    let connection = sqlite::Connection::open(database_path).unwrap();
-    
-    //connection.execute("INSERT INTO ttrpgs(name) VALUES('test')").unwrap();
-    
-    //let mut ttrpgs = Vec::new();
-
-    //connection.iterate("SELECT id, name, date FROM ttrpgs", |row| {
-    //ttrpgs.push(
-        //(
-            //row[0].1.unwrap().to_string(),
-            //row[1].1.unwrap().to_string(),
-            //row[2].1.unwrap().to_string(),
-        //)
-    //);
-    //true
-    //}).unwrap();
-    //
-    //println!("{:#?}", ttrpgs);
-}
 
 pub fn database_setup(database_path: &str) { 
     let connection = sqlite::Connection::open(database_path).unwrap();
@@ -34,7 +10,6 @@ pub fn database_setup(database_path: &str) {
     
     connection.execute("CREATE TABLE stories (
         ttrpg_id INTEGER NOT NULL,
-        label_text TEXT NOT NULL,
         text_data TEXT NOT NULL,
         FOREIGN KEY (ttrpg_id) REFERENCES ttrpgs(id)
     )").expect("Could not create table");
@@ -42,7 +17,6 @@ pub fn database_setup(database_path: &str) {
     connection.execute("CREATE TABLE attributes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ttrpg_id INTEGER NOT NULL,
-        label_text TEXT NOT NULL,
         description TEXT NOT NULL,
         FOREIGN KEY (ttrpg_id) REFERENCES ttrpgs(id)
     )").expect("Could not create table");
@@ -56,7 +30,7 @@ pub fn database_setup(database_path: &str) {
     
     connection.execute("CREATE TABLE rolls (
         ttrpg_id INTEGER NOT NULL,
-        skill_id INTEGER AUTOINCREMENT,
+        skill_id INTEGER PRIMARY KEY AUTOINCREMENT,
         blank_roll INTEGER NOT NULL,
         dice_label TEXT NOT NULL,
         dice INTEGER NOT NULL,
@@ -67,7 +41,6 @@ pub fn database_setup(database_path: &str) {
     connection.execute("CREATE TABLE skills (
         ttrpg_id INTEGER NOT NULL,
         roll_id INTEGER NOT NULL,
-        label_text TEXT NOT NULL,
         description TEXT NOT NULL,
         FOREIGN KEY (ttrpg_id) REFERENCES ttrpg(id),
         FOREIGN KEY (roll_id) REFERENCES rolls(skill_id)
@@ -75,7 +48,6 @@ pub fn database_setup(database_path: &str) {
   
     connection.execute("CREATE TABLE counters (
         ttrpg_id INTEGER NOT NULL,
-        label_text TEXT NOT NULL,
         description TEXT NOT NULL,
         number INTEGER NOT NULL,
         FOREIGN KEY (ttrpg_id) REFERENCES ttrpg(id)
@@ -84,7 +56,6 @@ pub fn database_setup(database_path: &str) {
     connection.execute("CREATE TABLE tables (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ttrpg_id INTEGER NOT NULL,
-        label_text TEXT NOT NULL,
         description TEXT,
         FOREIGN KEY (ttrpg_id) REFERENCES ttrpg(id)
     )").expect("Could not create table");

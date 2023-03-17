@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 roll_dice = {path = "../roll_dice"}
 narratives = {path = "../narratives"}
+sqlite = "0.30.4"

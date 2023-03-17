@@ -968,6 +968,7 @@ version = "0.1.0"
 dependencies = [
  "narratives",
  "roll_dice",
+ "sqlite",
 ]
 
 [[package]]
@@ -2460,6 +2461,9 @@ dependencies = [
  "egui_winit_platform",
  "entities",
  "libtext",
+ "narratives",
+ "regex",
+ "sqlite",
  "store_rpg",
  "winit",
 ]
