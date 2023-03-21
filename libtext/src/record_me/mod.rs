@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
 
-pub fn record_audio(file_name: &str) -> Result<(), anyhow::Error> {
+pub fn record_audio(ui: &mut egui::Ui, file_name: &str) -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
 
     // Set up the input device and stream with the default input config.
@@ -47,9 +47,23 @@ pub fn record_audio(file_name: &str) -> Result<(), anyhow::Error> {
 
     stream.play()?;
 
-    // Let recording go for roughly 10 seconds.
-    std::thread::sleep(std::time::Duration::from_secs(30));
-    drop(stream);
+    // A flag to indicate that recording is in progress.
+    let mut is_recording = true;
+
+    // Start the UI thread.
+    let ctx = egui::Context::default();
+    
+    egui::Window::new("Recording").show(&ctx, |ui| {
+        if ui.add(egui::Button::new("Record and Transcribe")).clicked() {
+            is_recording = false;
+        }
+    }); 
+    // Wait until recording is stopped.
+    while is_recording {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    // Finalize the WAV file.
     writer.lock().unwrap().take().unwrap().finalize()?;
     println!("Recording {} complete!", file_name);
     Ok(())
@@ -71,3 +85,4 @@ where
         }
     }
 }
+
