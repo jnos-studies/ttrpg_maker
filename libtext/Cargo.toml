@@ -12,4 +12,3 @@ narratives = {path = "../narratives"}
 log = "0.4.17"
 anyhow = "1.0.69"
 cpal = "0.15.0"
-egui = "0.21.0"

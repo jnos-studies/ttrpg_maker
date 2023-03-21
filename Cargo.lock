@@ -1449,7 +1449,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cpal",
- "egui",
  "hound",
  "log",
  "narratives",

@@ -5,7 +5,6 @@ use sqlite;
 use libtext;
 use regex::Regex;
 
-
 fn main () {
     libtext::record_audio("test_wavs/test3.wav").unwrap();
     let text = libtext::transcribe_audio_file("test_wavs/test3.wav");
