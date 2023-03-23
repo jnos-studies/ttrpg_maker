@@ -1,0 +1,16 @@
+[package]
+name = "gui"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libtext = {path = "../libtext"}
+entities = {path = "../entities"}
+narratives = {path = "../narratives"}
+roll_dice = {path = "../roll_dice"}
+store_rpg = {path = "../store_rpg"}
+eframe = "0.21.3"
+sqlite = "0.30.4"
+regex = "1.7.2"
