@@ -2,6 +2,7 @@ use eframe::egui;
 use regex::Regex;
 use entities;
 use std::env;
+use std::fs;
 use store_rpg::database_setup;
 
 const NAVIGATION_SELECTION_SIZE: f32 = 20.0;
@@ -25,7 +26,6 @@ impl eframe::App for TTRPGMaker {
         egui::TopBottomPanel::top("menu").show(ctx, |ui| {
             ui.visuals_mut().selection.bg_fill = egui::Color32::DARK_GRAY;
             ui.visuals_mut().selection.stroke.color = egui::Color32::BLACK;
-            
             let load_menu_text = set_text_widget_size("options".to_string(), NAVIGATION_SELECTION_SIZE)
                 .color(egui::Color32::WHITE);
             ui.menu_button(load_menu_text, |ui| {
@@ -42,19 +42,54 @@ impl eframe::App for TTRPGMaker {
                 .show(ctx, |ui| {
                 self.database_path = match env::var("DATABASE_PATH") {
                     Ok(path) => path,
-                    Err(_) => String::from(""),
+                    Err(_) => String::from("No path"),
                 };
-                
-                if self.database_path == String::from("") {
+                if ui.button("X").clicked()
+                {
+                    self.load_ttrpg = false;
+                }
+                if self.database_path == "No path" && fs::read_dir("saves/").unwrap().count() == 0 {
+                    let check_exists_file_name: bool = format!("saves/{}.db", self.file_save).eq(&self.database_path);
                     ui.text_edit_singleline(&mut self.file_save);
-                    if ui.button("Create").clicked() {
-                        let file_name = format!("saves/{}.db", self.file_save);
-                        env::set_var("DATABASE_PATH", file_name.as_str());
-                        database_setup(file_name.as_str()); // need to add error handling to this
+                    if ui.button("Create!").clicked() && !check_exists_file_name {
+                        if !self.file_save.contains(char::is_whitespace) && self.file_save.len() > 0 // if the file save does not contain whitespaces or nothing
+                        {
+                            self.database_path = format!("saves/{}.db", self.file_save);
+                            env::set_var("DATABASE_PATH", &self.database_path.as_str());
+                            database_setup(&self.database_path.as_str()); // need to add error handling to this, return a Result to unwrap
+                        }
+                        //LOAD DATABASE AND CLOSE WINDOW
                         self.load_ttrpg = false;   
                     }
                 } else {
                     //Load previously created ttrpg databases
+                    let paths = fs::read_dir("saves/").unwrap();
+                    for path in paths
+                    {
+                        let p = path.unwrap().path().display().to_string();
+                        
+                        if ui.add(egui::Button::new(&p)).clicked()
+                        {
+                            self.file_save = p.as_str().clone().to_string();
+                            env::set_var("DATABASE_PATH", &self.file_save.as_str());
+                            
+                            //LOAD THE DATABASE AND CLOSE WINDOW
+                        }
+                    }
+                    ui.horizontal(|ui| {
+                        let check_exists_file_name: bool = self.file_save.eq(&self.database_path);
+                        ui.text_edit_singleline(&mut self.file_save);
+                        if ui.button("Create!").clicked() && !check_exists_file_name
+                        {
+                            if !self.file_save.contains(char::is_whitespace) && self.file_save.len() > 0 // if the file save does not contain whitespaces or nothing
+                            {
+                                self.database_path = format!("saves/{}.db", self.file_save);
+                                env::set_var("DATABASE_PATH", &self.database_path.as_str());
+                                database_setup(&self.database_path.as_str());
+                            }
+                            //LOAD DATABASE THEN CLOSE WINDOW
+                       }
+                    });
                 }
             });
         }
