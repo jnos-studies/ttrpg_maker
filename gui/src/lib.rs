@@ -11,7 +11,7 @@ const NAVIGATION_SELECTION_SIZE: f32 = 20.0;
 pub struct TTRPGMaker {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
-    load_ttrpg: bool,
+    load_ttrpg: std::cell::Cell<bool>,
     database_path: String,
     file_save: String
 }
@@ -30,36 +30,35 @@ impl eframe::App for TTRPGMaker {
                 .color(egui::Color32::WHITE);
             ui.menu_button(load_menu_text, |ui| {
                 if ui.button("load / create ttrpg").clicked() {
-                   self.load_ttrpg = true; 
+                   self.load_ttrpg.set(true); 
                 }
             });
         });
 
-        if self.load_ttrpg {
-            egui::Window::new("saved ttrpgs")
-                .collapsible(true)
-                .resizable(true)
+        if self.load_ttrpg.get() {
+            egui::Window::new("pick a database").open(&mut self.load_ttrpg.get_mut())
+                .collapsible(false)
+                .resizable(false)
+                .id(egui::Id::new("create_menu"))
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::new(0.0, 0.0))
                 .show(ctx, |ui| {
                 self.database_path = match env::var("DATABASE_PATH") {
                     Ok(path) => path,
                     Err(_) => String::from("No path"),
                 };
-                if ui.button("X").clicked()
-                {
-                    self.load_ttrpg = false;
-                }
                 if self.database_path == "No path" && fs::read_dir("saves/").unwrap().count() == 0 {
                     let check_exists_file_name: bool = format!("saves/{}.db", self.file_save).eq(&self.database_path);
                     ui.text_edit_singleline(&mut self.file_save);
                     if ui.button("Create!").clicked() && !check_exists_file_name {
-                        if !self.file_save.contains(char::is_whitespace) && self.file_save.len() > 0 // if the file save does not contain whitespaces or nothing
+                        if !self.file_save.contains(char::is_whitespace) &&
+                        self.file_save.len() > 0 && // if the file save does not contain whitespaces or nothing
+                        check_non_alphanumertic(&self.file_save.as_str())
                         {
                             self.database_path = format!("saves/{}.db", self.file_save);
                             env::set_var("DATABASE_PATH", &self.database_path.as_str());
                             database_setup(&self.database_path.as_str()); // need to add error handling to this, return a Result to unwrap
                         }
                         //LOAD DATABASE AND CLOSE WINDOW
-                        self.load_ttrpg = false;   
                     }
                 } else {
                     //Load previously created ttrpg databases
@@ -67,21 +66,29 @@ impl eframe::App for TTRPGMaker {
                     for path in paths
                     {
                         let p = path.unwrap().path().display().to_string();
-                        
-                        if ui.add(egui::Button::new(&p)).clicked()
-                        {
-                            self.file_save = p.as_str().clone().to_string();
-                            env::set_var("DATABASE_PATH", &self.file_save.as_str());
-                            
-                            //LOAD THE DATABASE AND CLOSE WINDOW
-                        }
+                        let path_button = ui.add_sized((ui.available_width(), 10.0), egui::Button::new(&p));
+                        path_button.context_menu(|ui| {
+                           if ui.small_button("Delete").clicked()
+                           {
+                                fs::remove_file(&p).unwrap();
+                           }
+                           if ui.small_button("Load").clicked()
+                           {
+                                self.file_save = p.clone();
+                                env::set_var("DATABASE_PATH", &self.file_save.as_str());
+                                self.file_save = "".to_string(); //empty the single line
+                                //LOAD THE DATABASE AND CLOSE WINDOW
+                           }
+                        });
                     }
                     ui.horizontal(|ui| {
-                        let check_exists_file_name: bool = self.file_save.eq(&self.database_path);
+                        let check_exists_file_name: bool = format!("saves/{}.db", self.file_save).eq(&self.database_path);
                         ui.text_edit_singleline(&mut self.file_save);
                         if ui.button("Create!").clicked() && !check_exists_file_name
                         {
-                            if !self.file_save.contains(char::is_whitespace) && self.file_save.len() > 0 // if the file save does not contain whitespaces or nothing
+                            if !self.file_save.contains(char::is_whitespace) &&
+                            self.file_save.len() > 0 &&
+                            check_non_alphanumertic(&self.file_save.as_str())
                             {
                                 self.database_path = format!("saves/{}.db", self.file_save);
                                 env::set_var("DATABASE_PATH", &self.database_path.as_str());
@@ -136,3 +143,15 @@ fn escape_sql(input: &str) -> String {
     escaped.to_string()
 
 }
+
+fn check_non_alphanumertic (input:&str) -> bool {
+    for c in input.chars()
+    {
+        if !c.is_alphanumeric()
+        {
+            return false;
+        }
+    }
+    return true
+}
+    
