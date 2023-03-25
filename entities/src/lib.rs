@@ -3,6 +3,7 @@ use narratives::*;
 use sqlite;
 
 // Story
+#[derive(Debug)]
 pub struct Story {
     pub raw_narration: String,
     pub summarized: AutoNarrative
@@ -86,11 +87,11 @@ impl Table {
 }
 
 // Implement save method for all entity objects
-pub trait Save {
+pub trait SaveLoad {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>;
 }
 
-impl Save for Story {
+impl SaveLoad for Story {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query = format!(
@@ -109,8 +110,26 @@ impl Save for Story {
         Ok(())
     }
 }
+impl Story {
+    pub fn load(&self, database_path: &str, campaign_id: u32, ) ->  Result<Box<Vec<Story>>, String>{
+        let connection = sqlite::Connection::open_with_full_mutex(database_path).unwrap();
+        let query = format!(
+            "SELECT text_data FROM stories WHERE ttrpg_id = {}", campaign_id
+        );
+        let mut stories = Box::new(Vec::new());
+        connection.iterate(query, |row| {
+            println!("{:#?}", row);
+            let text = TypedNarrative::new(row[0].1.unwrap().to_string());
+            let story = Story::new(text);
+            stories.push(story); 
+            true
+        }).unwrap();
+        Ok(stories)
+    }
 
-impl Save for Attribute {
+}
+
+impl SaveLoad for Attribute {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_attribute = format!(
@@ -148,9 +167,10 @@ impl Save for Attribute {
         connection.execute(query_attribute_outcome).unwrap();
         Ok(())
     }
+
 }
 
-impl Save for Skill {
+impl SaveLoad for Skill {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_roll = format!(
@@ -196,7 +216,7 @@ impl Save for Skill {
     }
 }
 
-impl Save for Counter {
+impl SaveLoad for Counter {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query = format!(
@@ -218,7 +238,7 @@ impl Save for Counter {
     }
 }
 
-impl Save for Table {
+impl SaveLoad for Table {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_table = format!(

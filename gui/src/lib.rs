@@ -1,6 +1,7 @@
 use eframe::egui;
 use regex::Regex;
-use entities;
+use entities::*;
+use narratives::*;
 use std::env;
 use std::fs;
 use store_rpg::database_setup;
@@ -59,6 +60,7 @@ impl eframe::App for TTRPGMaker {
                             database_setup(&self.database_path.as_str()); // need to add error handling to this, return a Result to unwrap
                         }
                         //LOAD DATABASE AND CLOSE WINDOW
+                        //in store_rpg, make function load_ttrpg()
                     }
                 } else {
                     //Load previously created ttrpg databases
@@ -78,6 +80,7 @@ impl eframe::App for TTRPGMaker {
                                 env::set_var("DATABASE_PATH", &self.file_save.as_str());
                                 self.file_save = "".to_string(); //empty the single line
                                 //LOAD THE DATABASE AND CLOSE WINDOW
+                                //in store_rpg, make function load_ttrpg()
                            }
                         });
                     }
