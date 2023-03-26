@@ -1,7 +1,12 @@
+use std::env;
+use std::collections::HashMap;
+use std::any::Any;
+use sqlite;
+use entities::*;
 
-pub fn database_setup(database_path: &str) { 
+pub fn database_setup(database_path: &str)
+{ 
     let connection = sqlite::Connection::open(database_path).unwrap();
-
     let query = "CREATE TABLE ttrpgs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -70,3 +75,16 @@ pub fn database_setup(database_path: &str) {
 
     connection.execute(query).unwrap();
 }
+
+
+pub fn load_ttrpg<T: Any>(campaign: u32) -> HashMap<Box<T>>
+{
+    let value_any = T as &dyn Any;
+    // If a ttrpg already exists then the DATABASE_PATH should already be set
+    let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
+    
+    connection.iterate("", callback)
+
+}
+
+
