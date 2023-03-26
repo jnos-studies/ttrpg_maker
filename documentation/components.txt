@@ -1,6 +1,6 @@
 Component structures:
 
-A ttrpg consists of a variable amount of components which,
+The ttrpg consists of a variable amount of components which,
 at the point of writing this, are deduced to amount to the following,
 
 -Buffs (on self)
