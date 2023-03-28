@@ -4,7 +4,7 @@ use entities::*;
 use narratives::*;
 use std::env;
 use std::fs;
-use store_rpg::{database_setup, load_ttrpg};
+use store_rpg::*;
 
 const NAVIGATION_SELECTION_SIZE: f32 = 20.0;
 
@@ -15,7 +15,11 @@ pub struct TTRPGMaker
     show_confirmation_dialog: bool,
     load_ttrpg: std::cell::Cell<bool>,
     database_path: String,
-    file_save: String
+    file_save: String,
+    create_ttrpg: std::cell::Cell<bool>,
+    ttrpg_name: String,
+    selection_panel: Vec<Returned_TTRPG>,
+    view_panel: Vec<Returned_TTRPG>
 }
 
 impl eframe::App for TTRPGMaker
@@ -41,11 +45,29 @@ impl eframe::App for TTRPGMaker
                    self.load_ttrpg.set(true); 
                 }
             });
+            ui.label(self.database_path.as_str());
         });
+
+        egui::CentralPanel::default().show(ctx, |ui|
+        {
+            let mut selection_panel = ui.child_ui(ui.max_rect(), egui::Layout::left_to_right(egui::Align::Center));
+            let mut view_panel = ui.child_ui(ui.max_rect(), egui::Layout::right_to_left(egui::Align::Center));
+            selection_panel.set_width(ui.available_width() / 3.0);
+            view_panel.set_width(ui.available_width());
+            
+            for ttrpg in &self.selection_panel
+            {
+                selection_panel.collapsing(&ttrpg.name, |ui|
+                {
+                    ui.heading(&ttrpg.name);
+                });
+            }
+        });
+
 
         if self.load_ttrpg.get()
         {
-            egui::Window::new("pick a database").open(&mut self.load_ttrpg.get_mut())
+            egui::Window::new("pick a database").open(&mut self.load_ttrpg.get())
                 .collapsible(false)
                 .resizable(false)
                 .id(egui::Id::new("create_menu"))
@@ -71,9 +93,10 @@ impl eframe::App for TTRPGMaker
                             database_setup(&self.database_path.as_str()); // need to add error handling to this, return a Result to unwrap
                         }
                         //LOAD DATABASE AND CLOSE WINDOW
-                        //in store_rpg, make function load_ttrpg()
                     }
-                } else {
+                }
+                else
+                {
                     //Load previously created ttrpg databases
                     let paths = fs::read_dir("saves/").unwrap();
                     for path in paths
@@ -85,15 +108,17 @@ impl eframe::App for TTRPGMaker
                            if ui.small_button("Delete").clicked()
                            {
                                 fs::remove_file(&p).unwrap();
-                                ctx.request_repaint(); //repaint the ui after deleting the file
+                                env::set_var("DATABASE_PATH", "");
+                                //repaint the ui after deleting the file and reseting env variable
+                                ctx.request_repaint();
                            }
                            if ui.small_button("Load").clicked()
                            {
                                 self.file_save = p.clone();
                                 env::set_var("DATABASE_PATH", &self.file_save.as_str());
                                 self.file_save = "".to_string(); //empty the single line
-                                //LOAD THE DATABASE AND CLOSE WINDOW
-                                //in store_rpg, make function load_ttrpg()
+                                self.load_ttrpg.set(false);
+                                self.create_ttrpg.set(true);
                            }
                         });
                     }
@@ -111,11 +136,36 @@ impl eframe::App for TTRPGMaker
                                 env::set_var("DATABASE_PATH", &self.database_path.as_str());
                                 database_setup(&self.database_path.as_str());
                             }
-                            //LOAD DATABASE THEN CLOSE WINDOW
                        }
                     });
+
                 }
             });
+        }
+
+        if self.create_ttrpg.get()
+        {
+            egui::Window::new("Create ttrpg").open(&mut self.create_ttrpg.get_mut())
+                  .collapsible(false)
+                  .resizable(false)
+                  .id(egui::Id::new("create_menu"))
+                  .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::new(0.0, 0.0))
+                  .show(ctx, |ui| {
+                     ui.text_edit_singleline(&mut self.ttrpg_name);
+                          if ui.button("Create!").clicked()
+                          {
+                              if self.ttrpg_name.len() > 0 &&
+                              check_non_alphanumertic(&self.ttrpg_name.as_str())
+                              {
+                                  let ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str());
+                                  println!("{}", self.ttrpg_name);
+                                  self.selection_panel.push(ttrpg);
+                                  ctx.request_repaint();
+                              }
+                         }
+
+                  });
+
         }
 
         if self.show_confirmation_dialog

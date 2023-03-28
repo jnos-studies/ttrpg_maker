@@ -1,8 +1,39 @@
 use std::env;
-use std::collections::HashMap;
-use std::any::Any;
 use sqlite;
 use entities::*;
+
+pub struct Returned_TTRPG
+{
+    pub name: String,
+    pub id: u32,
+    pub stories: Vec<entities::Story>,
+    pub attributes: Vec<entities::Attribute>,
+    pub skills: Vec<entities::Skill>,
+    pub counters: Vec<entities::Counter>,
+    pub tables: Vec<entities::Table>
+}
+
+
+impl Returned_TTRPG
+{
+    pub fn new(name: &str) -> Returned_TTRPG
+    {
+        let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
+        let mut ttrpg = Returned_TTRPG
+        {
+            name: name.clone().to_string(),
+            id: 0,
+            stories: Vec::new(),
+            attributes: Vec::new(),
+            skills: Vec::new(),
+            counters: Vec::new(),
+            tables: Vec::new()
+        };
+        println!("{:?}", env::var("DATABASE_PATH"));
+        ttrpg.name = name.to_string();
+        ttrpg
+    }
+}
 
 pub fn database_setup(database_path: &str)
 { 
@@ -76,15 +107,14 @@ pub fn database_setup(database_path: &str)
     connection.execute(query).unwrap();
 }
 
-
-pub fn load_ttrpg<T: Any>(campaign: u32) -> HashMap<Box<T>>
+pub fn get_ttrpg_names() -> Vec<String>
 {
-    let value_any = T as &dyn Any;
-    // If a ttrpg already exists then the DATABASE_PATH should already be set
     let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
-    
-    connection.iterate("", callback)
-
+    let mut names = Vec::new();
+    connection.iterate(format!("SELECT name FROM ttrpgs"), |row|
+    {
+        names.push(row[0].1.unwrap().to_string());
+        true
+    }).unwrap();
+    names
 }
-
-

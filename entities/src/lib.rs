@@ -110,24 +110,6 @@ impl SaveLoad for Story {
         Ok(())
     }
 }
-impl Story {
-    pub fn load(&self, database_path: &str, campaign_id: u32, ) ->  Result<Box<Vec<Story>>, String>{
-        let connection = sqlite::Connection::open_with_full_mutex(database_path).unwrap();
-        let query = format!(
-            "SELECT text_data FROM stories WHERE ttrpg_id = {}", campaign_id
-        );
-        let mut stories = Box::new(Vec::new());
-        connection.iterate(query, |row| {
-            println!("{:#?}", row);
-            let text = TypedNarrative::new(row[0].1.unwrap().to_string());
-            let story = Story::new(text);
-            stories.push(story); 
-            true
-        }).unwrap();
-        Ok(stories)
-    }
-
-}
 
 impl SaveLoad for Attribute {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
