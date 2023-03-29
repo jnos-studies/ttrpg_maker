@@ -1,7 +1,7 @@
 use std::env;
 use sqlite;
 use entities::*;
-
+use narratives::*
 
 pub struct Returned_TTRPG
 {
@@ -34,10 +34,12 @@ impl Returned_TTRPG
             println!("{:?}", row[2].1.unwrap());
             if row[2].1.unwrap() == name {
                 ttrpg.name = "Already Exists".to_string();
+                ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap();
             }
             else
             {
                 ttrpg.name = name.to_string();
+                ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap();
             }
             true
         }).unwrap();
@@ -52,6 +54,28 @@ impl Returned_TTRPG
         {
             return ttrpg
         }
+    }
+    pub fn retrieve_existing(campaign_id: u32) -> Vec<Returned_TTRPG>
+    {
+        let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
+        let ttrpgs = Vec::new();
+        let stories = Vec::new();
+        let attributes = Vec::new();
+        let skills = Vec::new();
+        let counters = Vec::new();
+        let tables = Vec::new();
+
+        connection.iterate("SELECT id FROM ttrpgs", |ttrpg| {
+            let id = ttrpg[0].1.unwrap().parse::<u32>().unwrap();
+            connection.iterate(format!("SELECT * FROM stories WHERE ttrpg_id = {}", id), |story| {
+                let story_text = TypedNarrative::new(story[1].1.unwrap().to_string());
+                let story_entity = entities::Story::new(story_text);
+                stories.push(story_entity);
+                true
+            }).unwrap();
+
+            true
+        });
     }
 }
 
@@ -127,14 +151,3 @@ pub fn database_setup(database_path: &str)
     connection.execute(query).unwrap();
 }
 
-pub fn get_ttrpg_names() -> Vec<String>
-{
-    let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
-    let mut names = Vec::new();
-    connection.iterate(format!("SELECT name FROM ttrpgs"), |row|
-    {
-        names.push(row[0].1.unwrap().to_string());
-        true
-    }).unwrap();
-    names
-}

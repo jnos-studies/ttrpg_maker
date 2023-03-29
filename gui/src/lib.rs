@@ -44,6 +44,13 @@ impl eframe::App for TTRPGMaker
                 {
                    self.load_ttrpg.set(true); 
                 }
+                if self.database_path.len() > 1
+                {
+                    if ui.button("Create a new ttrpg entity").clicked()
+                    {
+                        self.create_ttrpg.set(true)
+                    }
+                }
             });
             ui.label(self.database_path.as_str());
         });
@@ -55,13 +62,16 @@ impl eframe::App for TTRPGMaker
             selection_panel.set_width(ui.available_width() / 3.0);
             view_panel.set_width(ui.available_width());
             
-            for ttrpg in &self.selection_panel
-            {
-                selection_panel.collapsing(&ttrpg.name, |ui|
-                {
-                    ui.heading(&ttrpg.name);
-                });
-            }
+            selection_panel.vertical(|ui| {
+                for ttrpg in &self.selection_panel
+                    {
+                        let heading = format!("{}-{}", &ttrpg.id, &ttrpg.name);
+                        ui.collapsing(&heading, |ui|
+                        {
+                            ui.heading("This is where the elements go");
+                        });
+                    }
+            });
         });
 
 

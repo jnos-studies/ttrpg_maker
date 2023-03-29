@@ -2302,6 +2302,7 @@ name = "store_rpg"
 version = "0.1.0"
 dependencies = [
  "entities",
+ "narratives",
  "sqlite",
 ]
 
