@@ -92,7 +92,7 @@ impl eframe::App for TTRPGMaker
                             env::set_var("DATABASE_PATH", &self.database_path.as_str());
                             database_setup(&self.database_path.as_str()); // need to add error handling to this, return a Result to unwrap
                         }
-                        //LOAD DATABASE AND CLOSE WINDOW
+                        ctx.request_repaint();
                     }
                 }
                 else
@@ -115,10 +115,12 @@ impl eframe::App for TTRPGMaker
                            if ui.small_button("Load").clicked()
                            {
                                 self.file_save = p.clone();
-                                env::set_var("DATABASE_PATH", &self.file_save.as_str());
+                                self.database_path = self.file_save.clone();
+                                env::set_var("DATABASE_PATH", &self.database_path.as_str());
                                 self.file_save = "".to_string(); //empty the single line
                                 self.load_ttrpg.set(false);
                                 self.create_ttrpg.set(true);
+                                ctx.request_repaint();
                            }
                         });
                     }
@@ -158,9 +160,12 @@ impl eframe::App for TTRPGMaker
                               check_non_alphanumertic(&self.ttrpg_name.as_str())
                               {
                                   let ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str());
-                                  println!("{}", self.ttrpg_name);
-                                  self.selection_panel.push(ttrpg);
-                                  ctx.request_repaint();
+                                  println!("{}", ttrpg.name);
+                                  if ttrpg.name != "Already Exists".to_string()
+                                  {
+                                      self.selection_panel.push(ttrpg);
+                                      ctx.request_repaint();
+                                  }
                               }
                          }
 

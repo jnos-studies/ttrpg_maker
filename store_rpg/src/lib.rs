@@ -2,6 +2,7 @@ use std::env;
 use sqlite;
 use entities::*;
 
+
 pub struct Returned_TTRPG
 {
     pub name: String,
@@ -21,7 +22,7 @@ impl Returned_TTRPG
         let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
         let mut ttrpg = Returned_TTRPG
         {
-            name: name.clone().to_string(),
+            name: "".to_string(),
             id: 0,
             stories: Vec::new(),
             attributes: Vec::new(),
@@ -29,9 +30,28 @@ impl Returned_TTRPG
             counters: Vec::new(),
             tables: Vec::new()
         };
-        println!("{:?}", env::var("DATABASE_PATH"));
-        ttrpg.name = name.to_string();
-        ttrpg
+        connection.iterate("SELECT * FROM ttrpgs", |row| {
+            println!("{:?}", row[2].1.unwrap());
+            if row[2].1.unwrap() == name {
+                ttrpg.name = "Already Exists".to_string();
+            }
+            else
+            {
+                ttrpg.name = name.to_string();
+            }
+            true
+        }).unwrap();
+
+        if ttrpg.name != "Already Exists".to_string()
+        {
+            connection.execute(format!("INSERT INTO ttrpgs (name) VALUES ('{}')", name)).unwrap();
+            ttrpg.name = String::from(name);
+            return ttrpg
+        }
+        else
+        {
+            return ttrpg
+        }
     }
 }
 
