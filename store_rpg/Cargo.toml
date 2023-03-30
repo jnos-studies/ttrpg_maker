@@ -8,4 +8,5 @@ description = "A crate package used for the storing and retrieval of ttrpg compo
 [dependencies]
 entities = {path = "../entities"}
 narratives = {path = "../narratives"}
+roll_dice = {path = "../roll_dice"}
 sqlite = "0.30.4"

@@ -1,7 +1,8 @@
 use std::env;
 use sqlite;
 use entities::*;
-use narratives::*
+use narratives::*;
+use roll_dice::*;
 
 pub struct Returned_TTRPG
 {
@@ -58,7 +59,6 @@ impl Returned_TTRPG
     pub fn retrieve_existing(campaign_id: u32) -> Vec<Returned_TTRPG>
     {
         let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
-        let ttrpgs = Vec::new();
         let stories = Vec::new();
         let attributes = Vec::new();
         let skills = Vec::new();
@@ -67,6 +67,8 @@ impl Returned_TTRPG
 
         connection.iterate("SELECT id FROM ttrpgs", |ttrpg| {
             let id = ttrpg[0].1.unwrap().parse::<u32>().unwrap();
+            
+            // Retrieve all stories with specified ttrpg id
             connection.iterate(format!("SELECT * FROM stories WHERE ttrpg_id = {}", id), |story| {
                 let story_text = TypedNarrative::new(story[1].1.unwrap().to_string());
                 let story_entity = entities::Story::new(story_text);
@@ -74,6 +76,48 @@ impl Returned_TTRPG
                 true
             }).unwrap();
 
+            // Retrieve all attributes
+            connection.iterate(format!("SELECT * FROM attributes WHERE ttrpg_id = {}", id), |attribute|{
+                let id_of_attribute = attribute[0].1.unwrap().parse::<u32>().unwrap();
+                let attribute_text = TypedNarrative::new(attribute[2].1.unwrap().to_string());
+                let mut outcome = roll_dice::Outcome{
+                  roll_description: "",
+                  base_result: 0,
+                  max: 0,
+                  min: 0,
+                  attribute: true,
+                  critical: 0
+                };
+                // get the outcomes of the attribute
+                for row in connection
+                    .prepare("SELECT roll_description, base_result FROM attribute_outcomes WHERE attribute_id = :id_of_attribute")
+                    .unwrap()
+                    .into_iter()
+                    .bind((":id_of_attribute", id_of_attribute as i64))
+                    .unwrap()
+                    .map(|row| row.unwrap())
+                {
+                    outcome.roll_description = row.read("roll_description").unwrap();
+                    outcome.base_result = row.read("base_result").unwrap() as u32;
+                }
+                // Initialize a new attribute that will be saved later by the user if they want it
+                // to be saved and push it onto memory stack
+                let attribute_retrieved = entities::Attribute::new(attribute_text, outcome);
+                attributes.push(attribute_retrieved);
+                true
+            }).unwrap();
+            
+            // Retrieve skills
+            connection.iterate(format!("SELECT roll_id, description FROM skills WHERE ttrpg_id = {}", id), |skill| {
+                
+                true
+            }).unwrap();
+            // Retrieve Counters
+            connection.iterate(format!("SELECT description, number FROM counters WHERE ttrpg_id = {}", id), |skill| {                                
+                  
+                true                                                                                                                                
+            }).unwrap(); 
+            // Retrieve Tables
             true
         });
     }
