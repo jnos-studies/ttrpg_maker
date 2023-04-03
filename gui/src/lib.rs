@@ -87,7 +87,7 @@ impl eframe::App for TTRPGMaker
             let mut view_panel = ui.child_ui(ui.max_rect(), egui::Layout::right_to_left(egui::Align::Center));
             selection_panel.set_width(ui.available_width() / 3.0);
             view_panel.set_width(ui.available_width());
-            
+             
             selection_panel.vertical(|ui| {
                 for ttrpg in &self.selection_panel
                     {
@@ -206,7 +206,6 @@ impl eframe::App for TTRPGMaker
                          }
 
                   });
-
         }
 
         if self.show_confirmation_dialog
