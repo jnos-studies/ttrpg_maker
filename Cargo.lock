@@ -2464,7 +2464,6 @@ version = "0.1.0"
 dependencies = [
  "entities",
  "gui",
- "libtext",
  "narratives",
  "regex",
  "sqlite",

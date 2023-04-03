@@ -5,12 +5,15 @@ use narratives::*;
 use std::env;
 use std::fs;
 use store_rpg::*;
-
+use libtext::*;
+use std::sync::{Arc, Mutex};
 const NAVIGATION_SELECTION_SIZE: f32 = 20.0;
 
 #[derive(Default)]
 pub struct TTRPGMaker
 {
+    recording_bool: Arc<Mutex<bool>>,
+    recording: bool,
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
     load_ttrpg: std::cell::Cell<bool>,
@@ -38,6 +41,7 @@ impl eframe::App for TTRPGMaker
             ui.visuals_mut().selection.stroke.color = egui::Color32::BLACK;
             let load_menu_text = set_text_widget_size("options".to_string(), NAVIGATION_SELECTION_SIZE)
                 .color(egui::Color32::WHITE);
+            
             ui.menu_button(load_menu_text, |ui|
             {
                 if ui.button("load / create ttrpg").clicked()
@@ -51,8 +55,30 @@ impl eframe::App for TTRPGMaker
                         self.create_ttrpg.set(true)
                     }
                 }
+                if ui.button("Record and transcribe").clicked()
+                {
+                    self.recording = true;
+                    self.recording_bool = Arc::new(Mutex::new(true));
+
+                    // Spawn a new thread to run audio recording in a loop
+                    let recording_bool_clone = self.recording_bool.clone();
+                    let handle = std::thread::spawn(move || {
+                        libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap(); // Change this so the directory is different
+                    });
+                    if *self.recording_bool.lock().unwrap() == false
+                    {
+                        handle.join().unwrap();
+                    }
+                }    
             });
             ui.label(self.database_path.as_str());
+            if *self.recording_bool.lock().unwrap() == true
+            {
+                if ui.button("Stop recording").clicked()
+                {
+                    *self.recording_bool.lock().unwrap() = false;
+                }
+            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui|

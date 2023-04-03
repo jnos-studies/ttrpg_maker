@@ -1,11 +1,11 @@
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{FromSample, Sample};
 use hound::WavSpec;
 use std::fs::File;
 use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
 
-pub fn record_audio(file_name: &str) -> Result<(), anyhow::Error> {
+pub fn record_audio(file_name: &str, recording_bool: Arc<Mutex<bool>>) -> Result<(), anyhow::Error> {
     let host = cpal::default_host();
 
     // Set up the input device and stream with the default input config.
@@ -31,29 +31,39 @@ pub fn record_audio(file_name: &str) -> Result<(), anyhow::Error> {
     // A flag to indicate that recording is in progress.
     println!("Begin recording...");
 
-    // Run the input stream on a separate thread.
-    let writer_2 = writer.clone();
-
     let err_fn = move |err| {
         eprintln!("an error occurred on stream: {}", err);
     };
 
-    let stream = device.unwrap().build_input_stream(
+    let writer_2 = writer.clone();
+
+    let thread_handle = std::thread::spawn(move || {
+        let stream = device.unwrap().build_input_stream(
             &config.into(),
             move |data, _: &_| write_input_data::<i16, i16>(data, &writer_2),
             err_fn,
             None,
         )?;
 
-    stream.play()?;
+        loop {
+            let is_recording = *recording_bool.lock().unwrap();
+            if !is_recording {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
 
-    std::thread::sleep(std::time::Duration::from_secs(10));
+        drop(stream);
+        writer.lock().unwrap().take().unwrap().finalize()?;
+        Ok::<(), anyhow::Error>(())
+    });
 
-    drop(stream);
-    writer.lock().unwrap().take().unwrap().finalize()?;
+    thread_handle.join().unwrap()?;
     println!("Recording {} complete!", file_name);
+
     Ok(())
 }
+
 
 type WavWriterHandle = Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>;
 
