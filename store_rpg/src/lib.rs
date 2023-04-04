@@ -32,7 +32,7 @@ impl Returned_TTRPG
             tables: Vec::new()
         };
         connection.iterate("SELECT * FROM ttrpgs", |row| {
-            println!("{:?}", row[2].1.unwrap());
+            // simple debug println!("{:?}", row[2].1.unwrap());
             if row[2].1.unwrap() == name {
                 ttrpg.name = "Already Exists".to_string();
                 ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap();
@@ -68,17 +68,14 @@ impl Returned_TTRPG
             ON attributes.id = attribute_outcomes.attribute_id
             WHERE attributes.id = ?";
         let skills_query = "
-            SELECT skills.description, rolls.blank_roll, rolls.dice_label, rolls.dice, rolls.amount, FROM skills
+            SELECT skills.description, rolls.dice, rolls.amount FROM skills
             INNER JOIN rolls
             ON skills.roll_id = rolls.skill_id
             WHERE skills.ttrpg_id = ?";
         let counters_query = "
             SELECT description, number FROM counters WHERE ttrpg_id = ?";
         let tables_query = "
-            SELECT tables.description, table_values.lower_range, table_values.higher_range, table_values.text_value FROM tables
-            INNER JOIN table_values
-            ON tables.id = table_values.table_id
-            WHERE tables.ttrpg_id = ?";
+            SELECT id, description FROM tables WHERE ttrpg_id = ? ";
         let mut prepare_stories = connection.prepare(story_query).unwrap();
         let mut prepare_attributes = connection.prepare(attribute_query).unwrap();
         let mut prepare_skills = connection.prepare(skills_query).unwrap();
@@ -90,10 +87,91 @@ impl Returned_TTRPG
         prepare_counters.bind((1, self.id as i64)).unwrap();
         prepare_tables.bind((1, self.id as i64)).unwrap();
 
+        let mut tables_to_search = Vec::new();
+        // TODO: Make all of the loading while loops run on different threads perhaps?
         while let Ok(sqlite::State::Row) = prepare_stories.next()
         {
             let story_text = narratives::TypedNarrative::new(prepare_stories.read::<String,_>("text_data").unwrap().clone());
             self.stories.push(entities::Story::new(story_text));
+        }
+        while let Ok(sqlite::State::Row) = prepare_attributes.next()
+        {
+            let (attribute_text, roll_description, base_result) =
+            (
+                prepare_attributes.read::<String, _>("attributes.description").unwrap().clone(),
+                prepare_attributes.read::<String, _>("attribute_outcomes.roll_description").unwrap().clone(),
+                prepare_attributes.read::<i64, _>("attribute_outcomes.base_result").unwrap().clone() 
+            );
+            let text_to_typed_narrative = narratives::TypedNarrative::new(attribute_text);
+            let outcome = roll_dice::Outcome {
+                roll_description,
+                base_result: base_result as u32,
+                max: 0,
+                min: 0,
+                attribute: true,
+                critical: 1 //roll_dice::Critical::One // TODO: change this to be an environment variable the user can select.
+            };
+            self.attributes.push(entities::Attribute::new(text_to_typed_narrative, outcome));
+        }
+        while let Ok(sqlite::State::Row) = prepare_skills.next()
+        {
+            let (description, dice, amount) =
+            (
+                prepare_skills.read::<String, _>("skills.description").unwrap(),
+                prepare_skills.read::<i64, _>("rolls.dice").unwrap() as u32,
+                prepare_skills.read::<i64, _>("rolls.amount").unwrap() as u32,
+            );
+
+            let text_to_typed_narrative = narratives::TypedNarrative::new(description);
+            let roll = roll_dice::Roll::new(dice, amount);
+            self.skills.push(entities::Skill::new(text_to_typed_narrative, roll));
+        }
+        while let Ok(sqlite::State::Row) = prepare_counters.next()
+        {
+            let (description, number) =
+            (
+                prepare_counters.read::<String, _>("description").unwrap(),
+                prepare_counters.read::<i64, _>("number").unwrap() as u32
+            );
+            let text_to_typed_narrative = narratives::TypedNarrative::new(description);
+            self.counters.push(entities::Counter::new(text_to_typed_narrative, number));
+        }
+        while let Ok(sqlite::State::Row) = prepare_tables.next()
+        {
+            let (id, description) =
+            (
+               prepare_tables.read::<i64, _>("id").unwrap() as u32,
+               prepare_tables.read::<String, _>("description").unwrap(),
+            );
+            tables_to_search.push((id, description));
+        }
+
+        // For every table, load there values from the database. This creates a new query for every
+        // table and is not very efficient for database access. But as long as it works for now
+        // that is okay
+        for table in tables_to_search
+        {
+            let table_values_query =
+                "SELECT lower_range, higher_range, text_value FROM table_values
+                WHERE table_id = ?";
+            let mut prepare_table_values = connection.prepare(table_values_query).unwrap();
+            prepare_table_values.bind((1, table.0 as i64)).unwrap();
+            
+            let mut values: Vec<((u32, u32), String)> = Vec::new();
+            while let Ok(sqlite::State::Row) = prepare_table_values.next()
+            {
+                let (lower_range, higher_range, text_value) =
+                (
+                    prepare_table_values.read::<i64, _>("lower_range").unwrap() as u32,
+                    prepare_table_values.read::<i64, _>("higher_range").unwrap() as u32,
+                    prepare_table_values.read::<String, _>("text_value").unwrap(),
+                );
+                values.push(((lower_range, higher_range), text_value));
+            }
+
+            let text_to_typed_narrative = narratives::TypedNarrative::new(table.1);
+            let table_to_tabled_narratives = narratives::TabledNarratives::new(values);
+            self.tables.push(entities::Table::new(text_to_typed_narrative, table_to_tabled_narratives));
         }
     }
 }
@@ -170,3 +248,13 @@ pub fn database_setup(database_path: &str)
     connection.execute(query).unwrap();
 }
 
+pub fn get_existing_ttrpgs_from_database(database_path: &str) -> Vec<String>
+{
+    let connection = sqlite::Connection::open(database_path).unwrap();
+    let mut ttrpg_names = Vec::new();
+    connection.iterate("SELECT name FROM ttrpgs", |row| {
+        ttrpg_names.push(row[0].1.unwrap().to_string().clone());
+        true
+    }).unwrap();
+    ttrpg_names
+}

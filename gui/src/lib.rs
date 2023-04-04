@@ -21,6 +21,7 @@ pub struct TTRPGMaker
     file_save: String,
     create_ttrpg: std::cell::Cell<bool>,
     ttrpg_name: String,
+    transcribed: String,
     selection_panel: Vec<Returned_TTRPG>,
     view_panel: Vec<Returned_TTRPG>
 }
@@ -50,12 +51,12 @@ impl eframe::App for TTRPGMaker
                 }
                 if self.database_path.len() > 1
                 {
-                    if ui.button("Create a new ttrpg entity").clicked()
+                    if ui.button("Create a new entity").clicked()
                     {
                         self.create_ttrpg.set(true)
                     }
                 }
-                if ui.button("Record and transcribe").clicked()
+                if ui.button("Record Audio").clicked()
                 {
                     self.recording = true;
                     self.recording_bool = Arc::new(Mutex::new(true));
@@ -63,13 +64,21 @@ impl eframe::App for TTRPGMaker
                     // Spawn a new thread to run audio recording in a loop
                     let recording_bool_clone = self.recording_bool.clone();
                     let handle = std::thread::spawn(move || {
-                        libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap(); // Change this so the directory is different
+                        libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap(); // TODO: Change this so the directory is different, won't say testing
                     });
                     if *self.recording_bool.lock().unwrap() == false
                     {
                         handle.join().unwrap();
                     }
-                }    
+
+                }
+                if ui.button("Transcribe Recording").clicked()
+                {
+                    if *self.recording_bool.lock().unwrap() == false
+                    {
+                        self.transcribed = libtext::transcribe_audio_file("test_wavs/testing.wav").text;
+                    }
+                }
             });
             ui.label(self.database_path.as_str());
             if *self.recording_bool.lock().unwrap() == true
@@ -87,9 +96,9 @@ impl eframe::App for TTRPGMaker
             let mut view_panel = ui.child_ui(ui.max_rect(), egui::Layout::right_to_left(egui::Align::Center));
             selection_panel.set_width(ui.available_width() / 3.0);
             view_panel.set_width(ui.available_width());
-             
-            selection_panel.vertical(|ui| {
-                for ttrpg in &self.selection_panel
+            selection_panel.group(|ui| {
+                ui.vertical_centered_justified(|ui| {
+                    for ttrpg in &self.selection_panel
                     {
                         let heading = format!("{}-{}", &ttrpg.id, &ttrpg.name);
                         ui.collapsing(&heading, |ui|
@@ -97,6 +106,12 @@ impl eframe::App for TTRPGMaker
                             ui.heading("This is where the elements go");
                         });
                     }
+
+                });
+            });
+
+            view_panel.group(|ui| {
+                ui.text_edit_multiline(&mut self.transcribed);
             });
         });
 
@@ -145,7 +160,9 @@ impl eframe::App for TTRPGMaker
                            {
                                 fs::remove_file(&p).unwrap();
                                 env::set_var("DATABASE_PATH", "");
-                                //repaint the ui after deleting the file and reseting env variable
+                                self.selection_panel.clear();
+                                //repaint the ui after deleting the file, reseting env variable,
+                                //and clearing the selection_panel
                                 ctx.request_repaint();
                            }
                            if ui.small_button("Load").clicked()
@@ -156,6 +173,17 @@ impl eframe::App for TTRPGMaker
                                 self.file_save = "".to_string(); //empty the single line
                                 self.load_ttrpg.set(false);
                                 self.create_ttrpg.set(true);
+                                
+                                self.selection_panel.clear(); // Also clear selection panel after loading
+                                // Load existing ttrpgs in selected database
+                                let load_names = store_rpg::get_existing_ttrpgs_from_database(&self.database_path.as_str());
+                                for name in load_names 
+                                {
+                                    let mut load_ttrpg = store_rpg::Returned_TTRPG::new(&name);
+                                    load_ttrpg.load_entity();
+                                    self.selection_panel.push(load_ttrpg);
+                                }
+
                                 ctx.request_repaint();
                            }
                         });
@@ -195,8 +223,7 @@ impl eframe::App for TTRPGMaker
                               if self.ttrpg_name.len() > 0 &&
                               check_non_alphanumertic(&self.ttrpg_name.as_str())
                               {
-                                  let ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str());
-                                  println!("{}", ttrpg.name);
+                                  let mut ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str());
                                   if ttrpg.name != "Already Exists".to_string()
                                   {
                                       self.selection_panel.push(ttrpg);

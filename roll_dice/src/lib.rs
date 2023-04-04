@@ -48,10 +48,10 @@ pub enum Critical {
 pub struct Outcome {
     pub roll_description: String,
     pub base_result: u32,
-    max: u32,
-    min: u32,
+    pub max: u32,
+    pub min: u32,
     pub attribute: bool,
-    critical: u32
+    pub critical: u32
 }
     
 impl Outcome {
