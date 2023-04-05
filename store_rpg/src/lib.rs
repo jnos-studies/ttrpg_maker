@@ -44,7 +44,7 @@ impl Returned_TTRPG
             }
             true
         }).unwrap();
-
+        // TODO: FIX THIS, IT INSERTS 'Already Exists' Into the database when it should not
         if ttrpg.name != "Already Exists".to_string()
         {
             connection.execute(format!("INSERT INTO ttrpgs (name) VALUES ('{}')", name)).unwrap();

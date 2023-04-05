@@ -7,7 +7,13 @@ use std::fs;
 use store_rpg::*;
 use libtext::*;
 use std::sync::{Arc, Mutex};
-const NAVIGATION_SELECTION_SIZE: f32 = 20.0;
+const NAVIGATION_SELECTION_SIZE: f32 = 15.0;
+
+pub struct StoryElements<'a>
+{
+    pub ttrpg_id: u32,
+    pub element_type: &'a str
+}
 
 #[derive(Default)]
 pub struct TTRPGMaker
@@ -23,7 +29,7 @@ pub struct TTRPGMaker
     ttrpg_name: String,
     transcribed: String,
     selection_panel: Vec<Returned_TTRPG>,
-    view_panel: Vec<Returned_TTRPG>
+    view_panel: Vec<StoryElements<'static>>
 }
 
 impl eframe::App for TTRPGMaker
@@ -45,8 +51,10 @@ impl eframe::App for TTRPGMaker
             
             ui.menu_button(load_menu_text, |ui|
             {
-                if ui.button("load / create ttrpg").clicked()
+                if ui.button("load database").clicked()
                 {
+                   self.selection_panel.clear();
+                   self.view_panel.clear();
                    self.load_ttrpg.set(true); 
                 }
                 if self.database_path.len() > 1
@@ -64,7 +72,11 @@ impl eframe::App for TTRPGMaker
                     // Spawn a new thread to run audio recording in a loop
                     let recording_bool_clone = self.recording_bool.clone();
                     let handle = std::thread::spawn(move || {
-                        libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap(); // TODO: Change this so the directory is different, won't say testing
+                        libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap();
+                        // TODO: Change this so the directory is different, won't say testing.
+                        // A good idea would be to make each transcription mapped to individual
+                        // recordings that are deleted after the transcription and run on different
+                        // threads.
                     });
                     if *self.recording_bool.lock().unwrap() == false
                     {
@@ -92,26 +104,86 @@ impl eframe::App for TTRPGMaker
 
         egui::CentralPanel::default().show(ctx, |ui|
         {
-            let mut selection_panel = ui.child_ui(ui.max_rect(), egui::Layout::left_to_right(egui::Align::Center));
-            let mut view_panel = ui.child_ui(ui.max_rect(), egui::Layout::right_to_left(egui::Align::Center));
-            selection_panel.set_width(ui.available_width() / 3.0);
-            view_panel.set_width(ui.available_width());
+            let mut selection_panel = ui.child_ui(ui.max_rect(), egui::Layout::left_to_right(egui::Align::TOP));
+            let mut view_panel = ui.child_ui(ui.max_rect(), egui::Layout::right_to_left(egui::Align::TOP));
+            selection_panel.set_width(ui.available_width() / 2.0);
+            view_panel.set_width(ui.available_width() * 2.0);
+            selection_panel.set_height(ui.available_height());
+            view_panel.set_height(ui.available_height());
             selection_panel.group(|ui| {
+                ui.set_width(ui.available_width());
+                ui.set_height(20.0);
                 ui.vertical_centered_justified(|ui| {
                     for ttrpg in &self.selection_panel
                     {
-                        let heading = format!("{}-{}", &ttrpg.id, &ttrpg.name);
-                        ui.collapsing(&heading, |ui|
-                        {
-                            ui.heading("This is where the elements go");
+                        let heading = format!("{}", &ttrpg.name); 
+                        ui.push_id(ttrpg.id, |ui| {
+                            ui.collapsing(&heading, |ui|
+                            {
+                                ui.group(|ui| {
+                                    ui.heading("Create new element");
+                                    if ui.small_button("Story").clicked()
+                                    {
+                                        let new_story = StoryElements {
+                                            ttrpg_id: ttrpg.id,
+                                            element_type: "Story"
+                                        };
+                                        self.view_panel.push(new_story);
+                                    }
+                                    if ui.small_button("Attribute").clicked()
+                                    {
+                                        let new_attribute = StoryElements {
+                                            ttrpg_id: ttrpg.id,
+                                            element_type: "Attribute"
+                                        };
+                                        self.view_panel.push(new_attribute);
+                                    }
+                                    if ui.small_button("Skill").clicked()
+                                    {
+                                    let new_skill = StoryElements {
+                                        ttrpg_id: ttrpg.id,
+                                        element_type: "Skill"
+                                    };
+                                        self.view_panel.push(new_skill);
+                                    }
+                                    if ui.small_button("Counter").clicked()
+                                    {
+                                        let new_counter = StoryElements {
+                                            ttrpg_id: ttrpg.id,
+                                            element_type: "Counter"
+                                        };
+                                        self.view_panel.push(new_counter);
+                                    }
+                                    if ui.small_button("Table").clicked()
+                                    {
+                                        let new_table = StoryElements {
+                                            ttrpg_id: ttrpg.id,
+                                            element_type: "Table"
+                                        };
+                                        self.view_panel.push(new_table);
+                                    }
+                                });
+                            });
                         });
                     }
-
+                
                 });
             });
 
             view_panel.group(|ui| {
-                ui.text_edit_multiline(&mut self.transcribed);
+                // Load the ttrpgs and their existing given the id selected
+                ui.menu_button("Select TTRPG", |ui| {
+                    for ttrpg in &self.selection_panel
+                    {
+                        let mut visible = true;
+                        let toggle = ui.toggle_value(&mut visible, &ttrpg.name);
+                        if toggle.clicked()
+                        {
+                            visible = false;
+                            println!("{}", visible);
+                        }
+                    }
+                });
             });
         });
 
@@ -221,14 +293,12 @@ impl eframe::App for TTRPGMaker
                           if ui.button("Create!").clicked()
                           {
                               if self.ttrpg_name.len() > 0 &&
-                              check_non_alphanumertic(&self.ttrpg_name.as_str())
+                              check_non_alphanumertic(&self.ttrpg_name.as_str()) &&
+                              !store_rpg::get_existing_ttrpgs_from_database(&self.database_path).contains(&self.ttrpg_name)
                               {
-                                  let mut ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str());
-                                  if ttrpg.name != "Already Exists".to_string()
-                                  {
-                                      self.selection_panel.push(ttrpg);
-                                      ctx.request_repaint();
-                                  }
+                                  let ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str());
+                                  self.selection_panel.push(ttrpg);
+                                  ctx.request_repaint();
                               }
                          }
 
