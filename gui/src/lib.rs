@@ -11,8 +11,9 @@ const NAVIGATION_SELECTION_SIZE: f32 = 15.0;
 
 pub struct StoryElements<'a>
 {
-    pub ttrpg_id: u32,
-    pub element_type: &'a str
+    pub ttrpg_name: String,
+    pub element_type: &'a str,
+    pub visibility: bool
 }
 
 #[derive(Default)]
@@ -49,49 +50,70 @@ impl eframe::App for TTRPGMaker
             let load_menu_text = set_text_widget_size("options".to_string(), NAVIGATION_SELECTION_SIZE)
                 .color(egui::Color32::WHITE);
             
-            ui.menu_button(load_menu_text, |ui|
-            {
-                if ui.button("load database").clicked()
-                {
-                   self.selection_panel.clear();
-                   self.view_panel.clear();
-                   self.load_ttrpg.set(true); 
-                }
-                if self.database_path.len() > 1
-                {
-                    if ui.button("Create a new entity").clicked()
+            ui.horizontal_top(|ui| {
+                ui.group(|ui| {
+                    ui.menu_button(load_menu_text, |ui|
                     {
-                        self.create_ttrpg.set(true)
-                    }
-                }
-                if ui.button("Record Audio").clicked()
-                {
-                    self.recording = true;
-                    self.recording_bool = Arc::new(Mutex::new(true));
+                        if ui.button("load database").clicked()
+                        {
+                            self.selection_panel.clear();
+                            self.view_panel.clear();
+                            self.load_ttrpg.set(true);
+                            ui.close_menu();
+                        }
+                        if self.database_path.len() > 1
+                        {
+                            if ui.button("Create a new entity").clicked()
+                            {
+                                self.create_ttrpg.set(true)
+                            }
+                        }
+                        if ui.button("Record Audio").clicked()
+                        {
+                            self.recording = true;
+                            self.recording_bool = Arc::new(Mutex::new(true));
+                            // Spawn a new thread to run audio recording in a loop
+                            let recording_bool_clone = self.recording_bool.clone();
+                            let handle = std::thread::spawn(move || {
+                            libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap();
+                            // TODO: Change this so the directory is different, won't say testing.
+                            // A good idea would be to make each transcription mapped to individual
+                            // recordings that are deleted after the transcription and run on different
+                            // threads.
+                            });
+                        if *self.recording_bool.lock().unwrap() == false
+                        {
+                            handle.join().unwrap();
+                        }
 
-                    // Spawn a new thread to run audio recording in a loop
-                    let recording_bool_clone = self.recording_bool.clone();
-                    let handle = std::thread::spawn(move || {
-                        libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap();
-                        // TODO: Change this so the directory is different, won't say testing.
-                        // A good idea would be to make each transcription mapped to individual
-                        // recordings that are deleted after the transcription and run on different
-                        // threads.
+                        }
+                        if ui.button("Transcribe Recording").clicked()
+                        {
+                            if *self.recording_bool.lock().unwrap() == false
+                            {
+                                self.transcribed = libtext::transcribe_audio_file("test_wavs/testing.wav").text;
+                            }
+                        }
                     });
-                    if *self.recording_bool.lock().unwrap() == false
-                    {
-                        handle.join().unwrap();
-                    }
 
-                }
-                if ui.button("Transcribe Recording").clicked()
-                {
-                    if *self.recording_bool.lock().unwrap() == false
-                    {
-                        self.transcribed = libtext::transcribe_audio_file("test_wavs/testing.wav").text;
-                    }
-                }
+                    // Load the ttrpgs and their existing given the id selected
+                    ui.menu_button("Elements", |ui| {
+                        ui.collapsing("Select TTRPG", |ui| {
+                            ui.set_width(ui.available_width());
+                            for ttrpg in &self.selection_panel
+                            {
+                                let mut selected = false;
+                                if ui.checkbox(&mut selected, ttrpg.name.clone()).clicked()
+                                {
+                                    ui.set_visible(true);
+                                };
+                            }
+                        });
+                    });
+                });
+
             });
+
             ui.label(self.database_path.as_str());
             if *self.recording_bool.lock().unwrap() == true
             {
@@ -125,40 +147,45 @@ impl eframe::App for TTRPGMaker
                                     if ui.small_button("Story").clicked()
                                     {
                                         let new_story = StoryElements {
-                                            ttrpg_id: ttrpg.id,
-                                            element_type: "Story"
+                                            ttrpg_name: ttrpg.name.clone(),
+                                            element_type: "Story",
+                                            visibility: true
                                         };
                                         self.view_panel.push(new_story);
                                     }
                                     if ui.small_button("Attribute").clicked()
                                     {
                                         let new_attribute = StoryElements {
-                                            ttrpg_id: ttrpg.id,
-                                            element_type: "Attribute"
+                                            ttrpg_name: ttrpg.name.clone(),
+                                            element_type: "Attribute",
+                                            visibility: true
                                         };
                                         self.view_panel.push(new_attribute);
                                     }
                                     if ui.small_button("Skill").clicked()
                                     {
                                     let new_skill = StoryElements {
-                                        ttrpg_id: ttrpg.id,
-                                        element_type: "Skill"
+                                        ttrpg_name: ttrpg.name.clone(),
+                                        element_type: "Skill",
+                                        visibility: true
                                     };
                                         self.view_panel.push(new_skill);
                                     }
                                     if ui.small_button("Counter").clicked()
                                     {
                                         let new_counter = StoryElements {
-                                            ttrpg_id: ttrpg.id,
-                                            element_type: "Counter"
+                                            ttrpg_name: ttrpg.name.clone(),
+                                            element_type: "Counter",
+                                            visibility: true
                                         };
                                         self.view_panel.push(new_counter);
                                     }
                                     if ui.small_button("Table").clicked()
                                     {
                                         let new_table = StoryElements {
-                                            ttrpg_id: ttrpg.id,
-                                            element_type: "Table"
+                                            ttrpg_name: ttrpg.name.clone(),
+                                            element_type: "Table",
+                                            visibility: true
                                         };
                                         self.view_panel.push(new_table);
                                     }
@@ -167,22 +194,6 @@ impl eframe::App for TTRPGMaker
                         });
                     }
                 
-                });
-            });
-
-            view_panel.group(|ui| {
-                // Load the ttrpgs and their existing given the id selected
-                ui.menu_button("Select TTRPG", |ui| {
-                    for ttrpg in &self.selection_panel
-                    {
-                        let mut visible = true;
-                        let toggle = ui.toggle_value(&mut visible, &ttrpg.name);
-                        if toggle.clicked()
-                        {
-                            visible = false;
-                            println!("{}", visible);
-                        }
-                    }
                 });
             });
         });
@@ -249,11 +260,15 @@ impl eframe::App for TTRPGMaker
                                 self.selection_panel.clear(); // Also clear selection panel after loading
                                 // Load existing ttrpgs in selected database
                                 let load_names = store_rpg::get_existing_ttrpgs_from_database(&self.database_path.as_str());
+
                                 for name in load_names 
                                 {
-                                    let mut load_ttrpg = store_rpg::Returned_TTRPG::new(&name);
-                                    load_ttrpg.load_entity();
-                                    self.selection_panel.push(load_ttrpg);
+                                    let load_ttrpg = store_rpg::Returned_TTRPG::new(&name, true);
+
+                                    if load_ttrpg.is_some()
+                                    {
+                                        self.selection_panel.push(load_ttrpg.unwrap());
+                                    }
                                 }
 
                                 ctx.request_repaint();
@@ -296,9 +311,12 @@ impl eframe::App for TTRPGMaker
                               check_non_alphanumertic(&self.ttrpg_name.as_str()) &&
                               !store_rpg::get_existing_ttrpgs_from_database(&self.database_path).contains(&self.ttrpg_name)
                               {
-                                  let ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str());
-                                  self.selection_panel.push(ttrpg);
-                                  ctx.request_repaint();
+                                  let ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str(), false);
+                                  if ttrpg.is_some()
+                                  {
+                                      self.selection_panel.push(ttrpg.unwrap());
+                                      ctx.request_repaint();
+                                  }
                               }
                          }
 
@@ -366,4 +384,4 @@ fn check_non_alphanumertic (input:&str) -> bool
     }
     return true
 }
-    
+

@@ -18,9 +18,10 @@ pub struct Returned_TTRPG
 
 impl Returned_TTRPG
 {
-    pub fn new(name: &str) -> Returned_TTRPG
+    pub fn new(name: &str, loading: bool) -> Option<Returned_TTRPG>
     {
         let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
+        let mut exists = false;
         let mut ttrpg = Returned_TTRPG
         {
             name: "".to_string(),
@@ -34,27 +35,25 @@ impl Returned_TTRPG
         connection.iterate("SELECT * FROM ttrpgs", |row| {
             // simple debug println!("{:?}", row[2].1.unwrap());
             if row[2].1.unwrap() == name {
-                ttrpg.name = "Already Exists".to_string();
-                ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap();
-            }
-            else
-            {
                 ttrpg.name = name.to_string();
                 ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap();
+                exists = true;
             }
             true
         }).unwrap();
-        // TODO: FIX THIS, IT INSERTS 'Already Exists' Into the database when it should not
-        if ttrpg.name != "Already Exists".to_string()
+
+        if exists == false
         {
             connection.execute(format!("INSERT INTO ttrpgs (name) VALUES ('{}')", name)).unwrap();
             ttrpg.name = String::from(name);
-            return ttrpg
+            return Some(ttrpg)
         }
-        else
+        if loading == true
         {
-            return ttrpg
+            ttrpg.load_entity();
+            return Some(ttrpg)
         }
+        None
     }
 
     pub fn load_entity(&mut self)
