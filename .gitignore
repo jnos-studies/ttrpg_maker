@@ -27,3 +27,5 @@ samples.txt
 #ignore .env file
 .env
 
+#ignore assets file
+/assets

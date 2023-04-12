@@ -1,387 +1,102 @@
 use eframe::egui;
+use eframe::epaint::image;
 use regex::Regex;
 use entities::*;
 use narratives::*;
 use std::env;
 use std::fs;
+use std::io::Read;
 use store_rpg::*;
 use libtext::*;
+use sqlite;
 use std::sync::{Arc, Mutex};
-const NAVIGATION_SELECTION_SIZE: f32 = 15.0;
 
-pub struct StoryElements<'a>
-{
-    pub ttrpg_name: String,
-    pub element_type: &'a str,
-    pub visibility: bool
-}
-
-#[derive(Default)]
 pub struct TTRPGMaker
 {
-    recording_bool: Arc<Mutex<bool>>,
-    recording: bool,
-    allowed_to_close: bool,
-    show_confirmation_dialog: bool,
-    load_ttrpg: std::cell::Cell<bool>,
-    database_path: String,
-    file_save: String,
-    create_ttrpg: std::cell::Cell<bool>,
-    ttrpg_name: String,
-    transcribed: String,
-    selection_panel: Vec<Returned_TTRPG>,
-    view_panel: Vec<StoryElements<'static>>
+    load_database: std::cell::Cell<bool>,
+    conn: sqlite::Connection,
+    databases: Vec<String>,
+    selected: Option<String>
 }
 
-impl eframe::App for TTRPGMaker
+impl Default for TTRPGMaker
 {
-    fn on_close_event(&mut self) -> bool
+    fn default() -> Self
     {
-        self.show_confirmation_dialog = true;
-        self.allowed_to_close
+        // Set the load database to true
+        let load_database = std::cell::Cell::new(true);
+        // Create a connection to a SQLite database in memory
+        let conn = sqlite::open(":memory:").unwrap();
+        // Get the list of available databases
+        let databases = std::fs::read_dir("saves/")
+            .unwrap()
+            .into_iter()
+            .map(|db| {db.unwrap().file_name().into_string().unwrap()})
+            .collect();
+        
+        // Initialize the selected database to None
+        let selected = None;
+        
+        Self { load_database, conn, databases, selected }
     }
+}
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame)
-    {
-        egui::TopBottomPanel::top("menu").show(ctx, |ui|
-        {
-            ui.visuals_mut().selection.bg_fill = egui::Color32::DARK_GRAY;
-            ui.visuals_mut().selection.stroke.color = egui::Color32::BLACK;
-            let load_menu_text = set_text_widget_size("options".to_string(), NAVIGATION_SELECTION_SIZE)
-                .color(egui::Color32::WHITE);
-            
-            ui.horizontal_top(|ui| {
-                ui.group(|ui| {
-                    ui.menu_button(load_menu_text, |ui|
-                    {
-                        if ui.button("load database").clicked()
-                        {
-                            self.selection_panel.clear();
-                            self.view_panel.clear();
-                            self.load_ttrpg.set(true);
-                            ui.close_menu();
-                        }
-                        if self.database_path.len() > 1
-                        {
-                            if ui.button("Create a new entity").clicked()
-                            {
-                                self.create_ttrpg.set(true)
-                            }
-                        }
-                        if ui.button("Record Audio").clicked()
-                        {
-                            self.recording = true;
-                            self.recording_bool = Arc::new(Mutex::new(true));
-                            // Spawn a new thread to run audio recording in a loop
-                            let recording_bool_clone = self.recording_bool.clone();
-                            let handle = std::thread::spawn(move || {
-                            libtext::record_audio("test_wavs/testing.wav", recording_bool_clone).unwrap();
-                            // TODO: Change this so the directory is different, won't say testing.
-                            // A good idea would be to make each transcription mapped to individual
-                            // recordings that are deleted after the transcription and run on different
-                            // threads.
-                            });
-                        if *self.recording_bool.lock().unwrap() == false
-                        {
-                            handle.join().unwrap();
-                        }
-
-                        }
-                        if ui.button("Transcribe Recording").clicked()
-                        {
-                            if *self.recording_bool.lock().unwrap() == false
-                            {
-                                self.transcribed = libtext::transcribe_audio_file("test_wavs/testing.wav").text;
-                            }
-                        }
-                    });
-
-                    // Load the ttrpgs and their existing given the id selected
-                    ui.menu_button("Elements", |ui| {
-                        ui.collapsing("Select TTRPG", |ui| {
-                            ui.set_width(ui.available_width());
-                            for ttrpg in &self.selection_panel
-                            {
-                                let mut selected = false;
-                                if ui.checkbox(&mut selected, ttrpg.name.clone()).clicked()
-                                {
-                                    ui.set_visible(true);
-                                };
-                            }
-                        });
-                    });
-                });
-
-            });
-
-            ui.label(self.database_path.as_str());
-            if *self.recording_bool.lock().unwrap() == true
-            {
-                if ui.button("Stop recording").clicked()
-                {
-                    *self.recording_bool.lock().unwrap() = false;
-                }
-            }
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui|
-        {
-            let mut selection_panel = ui.child_ui(ui.max_rect(), egui::Layout::left_to_right(egui::Align::TOP));
-            let mut view_panel = ui.child_ui(ui.max_rect(), egui::Layout::right_to_left(egui::Align::TOP));
-            selection_panel.set_width(ui.available_width() / 2.0);
-            view_panel.set_width(ui.available_width() * 2.0);
-            selection_panel.set_height(ui.available_height());
-            view_panel.set_height(ui.available_height());
-            selection_panel.group(|ui| {
-                ui.set_width(ui.available_width());
-                ui.set_height(20.0);
-                ui.vertical_centered_justified(|ui| {
-                    for ttrpg in &self.selection_panel
-                    {
-                        let heading = format!("{}", &ttrpg.name); 
-                        ui.push_id(ttrpg.id, |ui| {
-                            ui.collapsing(&heading, |ui|
-                            {
-                                ui.group(|ui| {
-                                    ui.heading("Create new element");
-                                    if ui.small_button("Story").clicked()
-                                    {
-                                        let new_story = StoryElements {
-                                            ttrpg_name: ttrpg.name.clone(),
-                                            element_type: "Story",
-                                            visibility: true
-                                        };
-                                        self.view_panel.push(new_story);
-                                    }
-                                    if ui.small_button("Attribute").clicked()
-                                    {
-                                        let new_attribute = StoryElements {
-                                            ttrpg_name: ttrpg.name.clone(),
-                                            element_type: "Attribute",
-                                            visibility: true
-                                        };
-                                        self.view_panel.push(new_attribute);
-                                    }
-                                    if ui.small_button("Skill").clicked()
-                                    {
-                                    let new_skill = StoryElements {
-                                        ttrpg_name: ttrpg.name.clone(),
-                                        element_type: "Skill",
-                                        visibility: true
-                                    };
-                                        self.view_panel.push(new_skill);
-                                    }
-                                    if ui.small_button("Counter").clicked()
-                                    {
-                                        let new_counter = StoryElements {
-                                            ttrpg_name: ttrpg.name.clone(),
-                                            element_type: "Counter",
-                                            visibility: true
-                                        };
-                                        self.view_panel.push(new_counter);
-                                    }
-                                    if ui.small_button("Table").clicked()
-                                    {
-                                        let new_table = StoryElements {
-                                            ttrpg_name: ttrpg.name.clone(),
-                                            element_type: "Table",
-                                            visibility: true
-                                        };
-                                        self.view_panel.push(new_table);
-                                    }
-                                });
-                            });
-                        });
-                    }
+impl eframe::App for TTRPGMaker {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Create a UI with a label and a combo box
+        frame.set_centered();
+        egui::TopBottomPanel::top("tabs")
+            .show_separator_line(false)
+            .show(ctx, |ui| {
+                let mut tabs = ui.child_ui(
+                    ui.available_rect_before_wrap(),
+                    egui::Layout::centered_and_justified(egui::Direction::LeftToRight)
+                );
                 
-                });
+                let stroke = egui::Stroke::new(1.0, egui::Color32::GOLD);
+                tabs.add(egui::Button::new("Element Creation").stroke(stroke))
             });
-        });
 
-
-        if self.load_ttrpg.get()
-        {
-            egui::Window::new("pick a database").open(&mut self.load_ttrpg.get())
+        if self.load_database.get()
+        { 
+            egui::Window::new("Load Database")
                 .collapsible(false)
                 .resizable(false)
-                .id(egui::Id::new("create_menu"))
                 .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::new(0.0, 0.0))
+                .resize(|r| {r.min_size(egui::Vec2::new(20.0, 10.0))})
                 .show(ctx, |ui| {
-                self.database_path = match env::var("DATABASE_PATH")
-                {
-                    Ok(path) => path,
-                    Err(_) => String::from("No path"),
-                };
-                if self.database_path == "No path" && fs::read_dir("saves/").unwrap().count() == 0
-                {
-                    let check_exists_file_name: bool = format!("saves/{}.db", self.file_save).eq(&self.database_path);
-                    ui.text_edit_singleline(&mut self.file_save);
-                    if ui.button("Create!").clicked() && !check_exists_file_name
-                    {
-                        if !self.file_save.contains(char::is_whitespace) &&
-                        self.file_save.len() > 0 && // if the file save does not contain whitespaces or nothing
-                        check_non_alphanumertic(&self.file_save.as_str())
-                        {
-                            self.database_path = format!("saves/{}.db", self.file_save);
-                            env::set_var("DATABASE_PATH", &self.database_path.as_str());
-                            database_setup(&self.database_path.as_str()); // need to add error handling to this, return a Result to unwrap
-                        }
-                        ctx.request_repaint();
-                    }
-                }
-                else
-                {
-                    //Load previously created ttrpg databases
-                    let paths = fs::read_dir("saves/").unwrap();
-                    for path in paths
-                    {
-                        let p = path.unwrap().path().display().to_string();
-                        let path_button = ui.add_sized((ui.available_width(), 10.0), egui::Button::new(&p));
-                        path_button.context_menu(|ui|
-                        {
-                           if ui.small_button("Delete").clicked()
-                           {
-                                fs::remove_file(&p).unwrap();
-                                env::set_var("DATABASE_PATH", "");
-                                self.selection_panel.clear();
-                                //repaint the ui after deleting the file, reseting env variable,
-                                //and clearing the selection_panel
-                                ctx.request_repaint();
-                           }
-                           if ui.small_button("Load").clicked()
-                           {
-                                self.file_save = p.clone();
-                                self.database_path = self.file_save.clone();
-                                env::set_var("DATABASE_PATH", &self.database_path.as_str());
-                                self.file_save = "".to_string(); //empty the single line
-                                self.load_ttrpg.set(false);
-                                self.create_ttrpg.set(true);
-                                
-                                self.selection_panel.clear(); // Also clear selection panel after loading
-                                // Load existing ttrpgs in selected database
-                                let load_names = store_rpg::get_existing_ttrpgs_from_database(&self.database_path.as_str());
 
-                                for name in load_names 
-                                {
-                                    let load_ttrpg = store_rpg::Returned_TTRPG::new(&name, true);
-
-                                    if load_ttrpg.is_some()
-                                    {
-                                        self.selection_panel.push(load_ttrpg.unwrap());
-                                    }
-                                }
-
-                                ctx.request_repaint();
-                           }
-                        });
-                    }
-                    ui.horizontal(|ui|
-                    {
-                        let check_exists_file_name: bool = format!("saves/{}.db", self.file_save).eq(&self.database_path);
-                        ui.text_edit_singleline(&mut self.file_save);
-                        if ui.button("Create!").clicked() && !check_exists_file_name
-                        {
-                            if !self.file_save.contains(char::is_whitespace) &&
-                            self.file_save.len() > 0 &&
-                            check_non_alphanumertic(&self.file_save.as_str())
-                            {
-                                self.database_path = format!("saves/{}.db", self.file_save);
-                                env::set_var("DATABASE_PATH", &self.database_path.as_str());
-                                database_setup(&self.database_path.as_str());
-                            }
-                       }
+                    ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui|{
+                        ui.add_space(10.0);                                                            
+                        ui.set_width(ctx.available_rect().width());                                    
+                        ui.set_height(ctx.available_rect().height());
+                        egui::ComboBox::from_id_source("databases")
+                            .selected_text(self.selected.as_deref().unwrap_or("None"))
+                            .width(ctx.available_rect().width() / 2.0)
+                            .show_ui(ui, |ui| {
+                                for db in &self.databases {
+                                    let mut selectable_value = ui.selectable_value(&mut self.selected, Some(db.clone()), db);
+                                }                                                                                                   
+                          });  
                     });
-
-                }
-            });
-        }
-
-        if self.create_ttrpg.get()
-        {
-            egui::Window::new("Create ttrpg").open(&mut self.create_ttrpg.get_mut())
-                  .collapsible(false)
-                  .resizable(false)
-                  .id(egui::Id::new("create_menu"))
-                  .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::new(0.0, 0.0))
-                  .show(ctx, |ui| {
-                     ui.text_edit_singleline(&mut self.ttrpg_name);
-                          if ui.button("Create!").clicked()
-                          {
-                              if self.ttrpg_name.len() > 0 &&
-                              check_non_alphanumertic(&self.ttrpg_name.as_str()) &&
-                              !store_rpg::get_existing_ttrpgs_from_database(&self.database_path).contains(&self.ttrpg_name)
-                              {
-                                  let ttrpg = store_rpg::Returned_TTRPG::new(&self.ttrpg_name.as_str(), false);
-                                  if ttrpg.is_some()
-                                  {
-                                      self.selection_panel.push(ttrpg.unwrap());
-                                      ctx.request_repaint();
-                                  }
-                              }
-                         }
-
-                  });
-        }
-
-        if self.show_confirmation_dialog
-        {
-            // Show confirmation dialog:
-            egui::Window::new("Do you want to quit?")
-                .collapsible(false)
-                .resizable(false)
-                .show(ctx, |ui|
-                {
-                    ui.horizontal(|ui|
-                    {
-                        if ui.button("Cancel").clicked()
-                        {
-                            self.show_confirmation_dialog = false;
-                        }
-
-                        if ui.button("Yes!").clicked()
-                        {
-                            self.allowed_to_close = true;
-                            frame.close();
-                        }
-                    });
+                    
                 });
+        }
+        if self.selected.is_some()
+        {
+            self.load_database.set(false);
         }
     }
 }
+
 
 pub fn start_app_main() -> Result<(), eframe::Error>
-{
-    let options = eframe::NativeOptions::default();
-    eframe::run_native(
-        "TTRPG Maker",
-        options,
-        Box::new(|_cc| Box::new(TTRPGMaker::default())),
-    )
-}
-
-fn set_text_widget_size(text: String, size: f32) -> egui::WidgetText
-{
-    let text = egui::RichText::new(text).size(size);
-    egui::WidgetText::from(text)
-}
-
-fn escape_sql(input: &str) -> String
-{
-    let re = Regex::new(r#"([\\'"])"#).unwrap();
-    let escaped = re.replace_all(input, "");
-    escaped.to_string()
-
-}
-
-fn check_non_alphanumertic (input:&str) -> bool
-{
-    for c in input.chars()
-    {
-        if !c.is_alphanumeric()
-        {
-            return false;
-        }
-    }
-    return true
-}
+  {
+      let options = eframe::NativeOptions::default();
+      eframe::run_native(
+          "TTRPG Maker",
+          options,
+          Box::new(|_cc| Box::new(TTRPGMaker::default())),
+      )
+  }
 
