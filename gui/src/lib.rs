@@ -112,7 +112,7 @@ impl eframe::App for TTRPGMaker {
                     ttrpg_selection_and_creator.set_width(ui.available_width());
                     ttrpg_selection_and_creator.set_height(ui.available_height());
                     
-                    database_selection_and_creator.group(|ui|
+                    database_selection_and_creator.horizontal(|ui|
                     {
                         ui.label("Select a database");
                         egui::ComboBox::from_id_source("databases")
@@ -139,6 +139,7 @@ impl eframe::App for TTRPGMaker {
                             });
                         ui.horizontal(|ui|
                         {
+                            let new_db_path = format!("{}.db", self.create_database);
                             ui.text_edit_singleline(&mut self.create_database);
                             if ui.button("Create new").clicked()
                             {
@@ -146,9 +147,32 @@ impl eframe::App for TTRPGMaker {
                                 !self.create_database.contains(char::is_whitespace)
                                 {
                                     let new_database = format!("saves/{}.db", self.create_database);
-                                    store_rpg::database_setup(&new_database);
-                                }
+                                    let current_dbs = std::fs::read_dir("saves/").unwrap();
+                                    let mut paths = Vec::new();
 
+                                    for p in current_dbs
+                                    {
+                                        paths.push(p.unwrap().path().display().to_string());
+                                    }
+
+                                    if !paths.contains(&new_database.to_string())
+                                    {
+                                        self.databases.push(new_db_path.clone());
+                                        store_rpg::database_setup(&new_database.as_str())
+                                    }
+                                }
+                            }
+                            if ui.button("Delete").clicked()
+                            {
+                                if self.selected.is_some() && self.selected.as_deref().unwrap() != "None"
+                                {
+                                    let to_delete = format!("saves/{}", self.selected.as_deref().unwrap());
+                                    // Remove memory of database from the list of databases and the
+                                    // physical file
+                                    self.databases.retain(|db| *db != to_delete);
+                                    std::fs::remove_file(to_delete).unwrap();
+                                    self.selected = Some("None".to_string());
+                                }
                             }
                         });
 
