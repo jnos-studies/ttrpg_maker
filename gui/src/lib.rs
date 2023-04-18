@@ -1,17 +1,8 @@
 use eframe::egui;
 use eframe::egui::TextBuffer;
-use eframe::epaint::vec2;
-use regex::Regex;
-use entities::*;
-use narratives::*;
 use std::env;
-use std::fmt::format;
-use std::fs;
-use std::io::Read;
 use store_rpg::*;
-use libtext::*;
 use sqlite;
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::cell::Cell;
 
@@ -19,7 +10,7 @@ pub struct TTRPGMaker
 {
     load_database: Cell<bool>,
     load_elements: Cell<bool>,
-    load_creation: Cell<bool>,
+    create_database: String,
     conn: sqlite::Connection,
     databases: Vec<String>,
     selected: Option<String>,
@@ -35,7 +26,7 @@ impl Default for TTRPGMaker
         // Set the load database to true and the other window bools to false
         let load_database = Cell::new(true);
         let load_elements = Cell::new(false);
-        let load_creation = Cell::new(false);
+        let create_database = "".to_string();
         // Create a connection to a SQLite database in memory
         let conn = sqlite::open(":memory:").unwrap();
         // Get the list of available databases
@@ -57,7 +48,7 @@ impl Default for TTRPGMaker
         {
             load_database,
             load_elements,
-            load_creation,
+            create_database,
             conn,
             databases,
             selected,
@@ -81,19 +72,11 @@ impl eframe::App for TTRPGMaker {
                 let tabs_button_sizes = egui::Vec2::new(tabs.available_width() / 3.0, tabs.available_height());
                 let stroke = egui::Stroke::new(1.0, egui::Color32::GOLD);
                 let elements_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Elements").stroke(stroke));
-                let creation_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Create").stroke(stroke));
                 let load_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Load").stroke(stroke));
                 
                 if elements_button.clicked()
                 {
                     self.load_elements.set(true);
-                    self.load_creation.set(false);
-                    self.load_database.set(false);
-                }
-                if creation_button.clicked()
-                {
-                    self.load_elements.set(false);
-                    self.load_creation.set(true);
                     self.load_database.set(false);
                 }
                 if load_button.clicked()
@@ -143,6 +126,7 @@ impl eframe::App for TTRPGMaker {
                                     {
                                         // Clear the elements hash booleans
                                         self.elements.clear();
+                                        self.loaded_ttrpg.clear();
                                         let database_path = format!("saves/{}", self.selected.as_deref().unwrap().as_str());
                                         let load_names = store_rpg::get_existing_ttrpgs_from_database(&database_path);
                                         let default_check_box = Cell::new(false);
@@ -153,6 +137,21 @@ impl eframe::App for TTRPGMaker {
                                     }
                                 }
                             });
+                        ui.horizontal(|ui|
+                        {
+                            ui.text_edit_singleline(&mut self.create_database);
+                            if ui.button("Create new").clicked()
+                            {
+                                if !self.create_database.is_empty() &&
+                                !self.create_database.contains(char::is_whitespace)
+                                {
+                                    let new_database = format!("saves/{}.db", self.create_database);
+                                    store_rpg::database_setup(&new_database);
+                                }
+
+                            }
+                        });
+
                     });
 
                     ttrpg_selection_and_creator.group(|ui|
