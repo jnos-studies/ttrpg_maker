@@ -2,7 +2,8 @@ use std::collections::{HashMap, hash_map::RandomState};
 use roll_dice::*;
 use pithy;
 
-// literally raw, original text
+//literally raw, original text
+#[derive(Clone)]
 pub struct TypedNarrative {
     pub text: String,
 }
@@ -16,6 +17,7 @@ impl TypedNarrative {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct AutoNarrative {
     pub summary: HashMap<usize, pithy::Sentence, RandomState>,
 }
@@ -35,8 +37,7 @@ impl AutoNarrative {
         
     }
 }
-
-
+#[derive(Clone)]
 pub struct TabledNarratives {
     pub table: HashMap<(u32, u32), String>
 }

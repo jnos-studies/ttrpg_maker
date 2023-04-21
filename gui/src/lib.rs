@@ -6,11 +6,14 @@ use sqlite;
 use std::collections::HashMap;
 use std::cell::Cell;
 
+
+
 pub struct TTRPGMaker
 {
     load_database: Cell<bool>,
     load_elements: Cell<bool>,
     create_database: String,
+    create_ttrpg: String,
     conn: sqlite::Connection,
     databases: Vec<String>,
     selected: Option<String>,
@@ -27,6 +30,7 @@ impl Default for TTRPGMaker
         let load_database = Cell::new(true);
         let load_elements = Cell::new(false);
         let create_database = "".to_string();
+        let create_ttrpg = "".to_string();
         // Create a connection to a SQLite database in memory
         let conn = sqlite::open(":memory:").unwrap();
         // Get the list of available databases
@@ -49,6 +53,7 @@ impl Default for TTRPGMaker
             load_database,
             load_elements,
             create_database,
+            create_ttrpg,
             conn,
             databases,
             selected,
@@ -59,6 +64,7 @@ impl Default for TTRPGMaker
 }
 
 impl eframe::App for TTRPGMaker {
+    
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Create a UI with a label and a combo box
         egui::TopBottomPanel::top("tabs")
@@ -104,7 +110,7 @@ impl eframe::App for TTRPGMaker {
                     );
                     let mut ttrpg_selection_and_creator = ui.child_ui
                     (
-                        ui.max_rect().shrink2(egui::vec2(0.0, ui.available_height() / 11.0)),
+                        ui.max_rect().shrink2(egui::vec2(0.0, ui.available_height() / 8.2)),
                         egui::Layout::top_down_justified(egui::Align::Center)
                     );
                     database_selection_and_creator.set_width(ui.available_width());
@@ -112,7 +118,7 @@ impl eframe::App for TTRPGMaker {
                     ttrpg_selection_and_creator.set_width(ui.available_width());
                     ttrpg_selection_and_creator.set_height(ui.available_height());
                     
-                    database_selection_and_creator.horizontal(|ui|
+                    database_selection_and_creator.group(|ui|
                     {
                         ui.label("Select a database");
                         egui::ComboBox::from_id_source("databases")
@@ -126,7 +132,6 @@ impl eframe::App for TTRPGMaker {
                                     {
                                         // Clear the elements hash booleans
                                         self.elements.clear();
-                                        self.loaded_ttrpg.clear();
                                         let database_path = format!("saves/{}", self.selected.as_deref().unwrap().as_str());
                                         let load_names = store_rpg::get_existing_ttrpgs_from_database(&database_path);
                                         let default_check_box = Cell::new(false);
@@ -140,7 +145,6 @@ impl eframe::App for TTRPGMaker {
                         ui.horizontal(|ui|
                         {
                             let new_db_path = format!("{}.db", self.create_database);
-                            ui.text_edit_singleline(&mut self.create_database);
                             if ui.button("Create new").clicked()
                             {
                                 if !self.create_database.is_empty() &&
@@ -166,20 +170,44 @@ impl eframe::App for TTRPGMaker {
                             {
                                 if self.selected.is_some() && self.selected.as_deref().unwrap() != "None"
                                 {
-                                    let to_delete = format!("saves/{}", self.selected.as_deref().unwrap());
+                                    let to_delete = format!("{}", self.selected.as_deref().unwrap());
                                     // Remove memory of database from the list of databases and the
                                     // physical file
-                                    self.databases.retain(|db| *db != to_delete);
-                                    std::fs::remove_file(to_delete).unwrap();
+                                    self.databases.retain(|db| *db != to_delete.to_string());
+                                    std::fs::remove_file(format!("saves/{}", to_delete)).unwrap();
                                     self.selected = Some("None".to_string());
                                 }
                             }
+                            ui.text_edit_singleline(&mut self.create_database);
                         });
 
                     });
 
                     ttrpg_selection_and_creator.group(|ui|
                     {
+                        ui.horizontal(|ui| {
+                            ui.heading("TTRPG Creator");
+
+                            ui.label("Name: ");
+                            ui.horizontal_top(|ui| {
+                                ui.text_edit_singleline(&mut self.create_ttrpg);
+                                let create_button = egui::Button::new("Create");
+                                if ui.add(create_button).clicked()
+                                {
+                                    // The created ttrpg element will be inserted into the database
+                                    // if it doesn't already exists. So if created_ttrpg returns
+                                    // None, that means that the ttrpg already exists
+                                    let created_ttrpg = store_rpg::Returned_TTRPG::new(&self.create_ttrpg, false);
+                                    if created_ttrpg.is_some()
+                                    {
+                                        let ttrpg_value = created_ttrpg.unwrap();
+                                        // push the name value onto the elements hash to load it
+                                        self.elements.insert(ttrpg_value.name, std::cell::Cell::new(false));
+                                    }
+                                }
+                            });
+                        });
+
                         if self.selected.is_some()
                         {
                             for (key, value) in self.elements.iter_mut()
@@ -207,14 +235,9 @@ impl eframe::App for TTRPGMaker {
 
         if self.load_elements.get()
         {
-            egui::Window::new("Elements")
-            .collapsible(false)
-            .resizable(false)
-            .vscroll(true)
-            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::new(0.0, 0.0))
-            .show(ctx, |ui| {
-                ui.set_width(ctx.available_rect().width());
-                ui.set_height(ctx.available_rect().height() - 40.0);
+            egui::SidePanel::left("Elements")
+                .show(ctx, |ui| {
+                ui.set_width(ctx.available_rect().width()/ 4.0);
                 for (key, value) in self.loaded_ttrpg.iter_mut()
                 {
                     value.load_entity();
@@ -229,9 +252,17 @@ impl eframe::App for TTRPGMaker {
                                 value.counters.len(),
                                 value.tables.len()
                             );
-                            if ui.add_sized(egui::vec2(ui.available_width() / 2.0, 30.0), egui::Button::new("View")).clicked()
+                            // TODO: Create a hashmap of viewing Cells to track and close the
+                            // closing buttons of the generated viewing windows. could do the
+                            // same for creation windows.
+                            let mut reload_to_view = store_rpg::Returned_TTRPG::new(value.name.clone().as_str(), true).unwrap();
+                            // reload the values
+                            reload_to_view.load_entity();
+                             if ui.add_sized(egui::vec2(ui.available_width() / 2.0, 30.0), egui::Button::new("View")).clicked()
                             {
+                                // TODO: Need to add a viewing page
                             }
+                            
                             ui.small(ttrpg_info);
                         });
                     });

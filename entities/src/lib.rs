@@ -19,6 +19,7 @@ impl Story {
 }
 
 // Attribute
+#[derive(Clone)]
 pub struct Attribute {
     pub description: TypedNarrative,
     pub attribute: Outcome,
@@ -39,6 +40,7 @@ impl Attribute {
 
 
 // Skill
+#[derive(Clone)]
 pub struct Skill {
     pub description: TypedNarrative,
     pub roll: Roll
@@ -54,6 +56,7 @@ impl Skill {
 }
 
 // Counter
+#[derive(Clone)]
 pub struct Counter {
     pub description: TypedNarrative,
     pub number: u32
@@ -72,6 +75,7 @@ impl Counter {
     }
 }
 // Table
+#[derive(Clone)]
 pub struct Table {
     pub description: TypedNarrative,
     pub table: TabledNarratives

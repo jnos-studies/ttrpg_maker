@@ -6,6 +6,7 @@ trait DiceRoll {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Roll {
     pub dice_label: String,
     pub dice: u32,
@@ -37,7 +38,7 @@ impl DiceRoll for Roll {
 }
 //The Outcome struct handles opposed rolls and determines who wins depending on
 //the critical_value. The critical value determines whether the highest die is 1 or 20. 
-
+#[derive(Clone)]
 pub enum Critical {
     Twenty,
     One
@@ -45,6 +46,7 @@ pub enum Critical {
 
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Outcome {
     pub roll_description: String,
     pub base_result: u32,
