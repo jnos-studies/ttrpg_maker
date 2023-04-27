@@ -12,6 +12,8 @@ pub struct TTRPGMaker
 {
     load_database: Cell<bool>,
     load_elements: Cell<bool>,
+    view_page: Cell<bool>,
+    edit_page: Cell<bool>,
     create_database: String,
     create_ttrpg: String,
     conn: sqlite::Connection,
@@ -29,6 +31,8 @@ impl Default for TTRPGMaker
         // Set the load database to true and the other window bools to false
         let load_database = Cell::new(true);
         let load_elements = Cell::new(false);
+        let view_page = Cell::new(false);
+        let edit_page = Cell::new(false);
         let create_database = "".to_string();
         let create_ttrpg = "".to_string();
         // Create a connection to a SQLite database in memory
@@ -52,6 +56,8 @@ impl Default for TTRPGMaker
         {
             load_database,
             load_elements,
+            view_page,
+            edit_page,
             create_database,
             create_ttrpg,
             conn,
@@ -253,12 +259,14 @@ impl eframe::App for TTRPGMaker {
                             
                                 if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("View")).clicked()
                                 {
-                                    // TODO: Need to add a viewing page
+                                    self.view_page.set(true);
+                                    self.edit_page.set(false);
                                 }
                             
                                 if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("Edit")).clicked()
                                 {
-                                    // TODO: Need to add a editing page
+                                    self.view_page.set(false);
+                                    self.edit_page.set(true);
                                 }
                             });
                             let ttrpg_info = format!("Element Overview\n\nStories: {}\nAttributes: {}\nSkills: {}\nCounters:{}\nTables: {}",
@@ -275,6 +283,16 @@ impl eframe::App for TTRPGMaker {
             });
         }
 
+        if self.view_page.get()
+        {
+            
+        }
+
+        if self.edit_page.get()
+        {
+
+        }
+
         if self.selected.is_some()
         {
             let selected_ref = self.selected.as_deref().unwrap();
@@ -283,6 +301,59 @@ impl eframe::App for TTRPGMaker {
     }
 }
 
+fn view_or_edit(view_edit: bool, name: &str, ctx: &egui::Context)
+{
+    let mut load_entity = store_rpg::Returned_TTRPG::new(&name, true).unwrap();
+    load_entity.load_entity();
+    
+    egui::SidePanel::right("view_or_edit")
+        .show(ctx, |ui| {
+            ui.heading(&load_entity.name);
+            ui.vertical(|ui| {
+                ui.label("Stories");
+                ui.horizontal_top(|ui| {
+                    for story in load_entity.stories
+                    {
+                        if view_edit
+                        {
+                            ui.collapsing(story.summarized.summary.get(&0).unwrap().text.clone(), |ui| {
+                            // Get a summary as a header TODO: change the db so that it has labels instead
+                            ui.strong(story.raw_narration);
+                            });
+                        }
+                    }
+                });
+                ui.label("Attributes");
+                ui.horizontal_top(|ui| {
+                    for attribute in load_entity.attributes
+                    {
+                        if view_edit
+                        {
+                            ui.collapsing(attribute.description.text.clone(), |ui| {
+                                let outcome = attribute.attribute.clone();
+                                ui.strong(outcome.roll_description);
+                                ui.label("Base Result: ");
+                                let base_result = format!("Base Result: {}", outcome.base_result.clone());
+                                ui.strong(base_result);
+                            });
+                        }
+                    }
+                });
+                ui.label("Skills");
+                ui.horizontal_top(|ui| {
+                         
+                });
+                ui.label("Counters");
+                ui.horizontal_top(|ui| {
+                        
+                });
+                ui.label("Tables");
+                ui.horizontal_top(|ui| {
+                        
+                });
+            });
+        });
+}
 
 pub fn start_app_main() -> Result<(), eframe::Error>
   {
