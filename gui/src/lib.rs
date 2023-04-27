@@ -187,7 +187,6 @@ impl eframe::App for TTRPGMaker {
                     {
                         ui.horizontal(|ui| {
                             ui.heading("TTRPG Creator");
-
                             ui.label("Name: ");
                             ui.horizontal_top(|ui| {
                                 ui.text_edit_singleline(&mut self.create_ttrpg);
@@ -237,14 +236,31 @@ impl eframe::App for TTRPGMaker {
         {
             egui::SidePanel::left("Elements")
                 .show(ctx, |ui| {
-                ui.set_width(ctx.available_rect().width()/ 4.0);
-                for (key, value) in self.loaded_ttrpg.iter_mut()
-                {
-                    value.load_entity();
-                    ui.collapsing(key, |ui|
+                ui.set_width(ctx.available_rect().width() / 5.0);
+                let scroll_area = egui::ScrollArea::vertical();
+                scroll_area.show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    for (key, value) in self.loaded_ttrpg.iter_mut()
                     {
-                        ui.horizontal_top(|ui|
+                        value.load_entity();
+                        ui.collapsing(key, |ui|
                         {
+                            ui.horizontal_top(|ui|
+                            {
+                                let mut reload_to_view = store_rpg::Returned_TTRPG::new(value.name.clone().as_str(), true).unwrap();
+                                // reload the values
+                                reload_to_view.load_entity();
+                            
+                                if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("View")).clicked()
+                                {
+                                    // TODO: Need to add a viewing page
+                                }
+                            
+                                if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("Edit")).clicked()
+                                {
+                                    // TODO: Need to add a editing page
+                                }
+                            });
                             let ttrpg_info = format!("Element Overview\n\nStories: {}\nAttributes: {}\nSkills: {}\nCounters:{}\nTables: {}",
                                 value.stories.len(),
                                 value.attributes.len(),
@@ -252,21 +268,10 @@ impl eframe::App for TTRPGMaker {
                                 value.counters.len(),
                                 value.tables.len()
                             );
-                            // TODO: Create a hashmap of viewing Cells to track and close the
-                            // closing buttons of the generated viewing windows. could do the
-                            // same for creation windows.
-                            let mut reload_to_view = store_rpg::Returned_TTRPG::new(value.name.clone().as_str(), true).unwrap();
-                            // reload the values
-                            reload_to_view.load_entity();
-                             if ui.add_sized(egui::vec2(ui.available_width() / 2.0, 30.0), egui::Button::new("View")).clicked()
-                            {
-                                // TODO: Need to add a viewing page
-                            }
-                            
-                            ui.small(ttrpg_info);
+                            ui.strong(ttrpg_info);
                         });
-                    });
-                }
+                    }
+                });
             });
         }
 
