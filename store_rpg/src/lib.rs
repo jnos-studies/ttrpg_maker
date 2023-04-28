@@ -184,6 +184,7 @@ pub fn database_setup(database_path: &str)
             name TEXT NOT NULL);
 
         CREATE TABLE stories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             ttrpg_id INTEGER NOT NULL,
             text_data TEXT NOT NULL,
             FOREIGN KEY (ttrpg_id) REFERENCES ttrpgs(id)

@@ -92,10 +92,13 @@ impl Table {
 
 // Implement save method for all entity objects
 pub trait SaveLoad {
+    type Entity;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>;
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>;
 }
 
 impl SaveLoad for Story {
+    type Entity = Story;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query = format!(
@@ -113,9 +116,22 @@ impl SaveLoad for Story {
         connection.execute(query).unwrap();
         Ok(())
     }
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Story) -> Result<(), String>
+    {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query = format!(
+            "UPDATE stories SET text_data = '{}' WHERE id = {};",
+            update_entity.raw_narration,
+            entity_id
+        );
+
+        connection.execute(query).unwrap();
+        Ok(())
+    }
 }
 
 impl SaveLoad for Attribute {
+    type Entity = Attribute;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_attribute = format!(
@@ -154,9 +170,29 @@ impl SaveLoad for Attribute {
         Ok(())
     }
 
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>
+    {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        // Remove and add a new attribute to replace the old one
+        let query = format!(
+            "
+            UPDATE attribute_outcomes SET roll_description = '{}', base_result = {} WHERE attribute_id = {};
+            UPDATE attributes SET description WHERE id = {};
+            ",
+            update_entity.attribute.roll_description,
+            update_entity.attribute.base_result,
+            entity_id,
+            entity_id
+        );
+
+        connection.execute(query).unwrap();
+        Ok(())
+        
+    }
 }
 
 impl SaveLoad for Skill {
+    type Entity = Skill;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_roll = format!(
@@ -200,9 +236,13 @@ impl SaveLoad for Skill {
 
         Ok(())
     }
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 impl SaveLoad for Counter {
+    type Entity = Counter;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query = format!(
@@ -222,9 +262,14 @@ impl SaveLoad for Counter {
 
         Ok(())
     }
+
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 impl SaveLoad for Table {
+    type Entity = Table;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_table = format!(
@@ -265,7 +310,10 @@ impl SaveLoad for Table {
             connection.execute(query_table_values).unwrap();
         }
         
+        Ok(())
+    }
 
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
         Ok(())
     }
 }

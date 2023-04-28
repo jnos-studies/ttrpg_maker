@@ -12,8 +12,7 @@ pub struct TTRPGMaker
 {
     load_database: Cell<bool>,
     load_elements: Cell<bool>,
-    view_page: Cell<bool>,
-    edit_page: Cell<bool>,
+    view_edit: Cell<bool>,
     create_database: String,
     create_ttrpg: String,
     conn: sqlite::Connection,
@@ -31,8 +30,7 @@ impl Default for TTRPGMaker
         // Set the load database to true and the other window bools to false
         let load_database = Cell::new(true);
         let load_elements = Cell::new(false);
-        let view_page = Cell::new(false);
-        let edit_page = Cell::new(false);
+        let view_edit = Cell::new(false);
         let create_database = "".to_string();
         let create_ttrpg = "".to_string();
         // Create a connection to a SQLite database in memory
@@ -56,8 +54,7 @@ impl Default for TTRPGMaker
         {
             load_database,
             load_elements,
-            view_page,
-            edit_page,
+            view_edit,
             create_database,
             create_ttrpg,
             conn,
@@ -257,16 +254,15 @@ impl eframe::App for TTRPGMaker {
                                 // reload the values
                                 reload_to_view.load_entity();
                             
+                                // True means to view and false means to edit
                                 if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("View")).clicked()
                                 {
-                                    self.view_page.set(true);
-                                    self.edit_page.set(false);
+                                    self.view_edit.set(true);
                                 }
                             
                                 if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("Edit")).clicked()
                                 {
-                                    self.view_page.set(false);
-                                    self.edit_page.set(true);
+                                    self.view_edit.set(false);
                                 }
                             });
                             let ttrpg_info = format!("Element Overview\n\nStories: {}\nAttributes: {}\nSkills: {}\nCounters:{}\nTables: {}",
@@ -283,15 +279,11 @@ impl eframe::App for TTRPGMaker {
             });
         }
 
-        if self.view_page.get()
+        if self.view_edit.get()
         {
             
         }
 
-        if self.edit_page.get()
-        {
-
-        }
 
         if self.selected.is_some()
         {
@@ -301,7 +293,7 @@ impl eframe::App for TTRPGMaker {
     }
 }
 
-fn view_or_edit(view_edit: bool, name: &str, ctx: &egui::Context)
+fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
 {
     let mut load_entity = store_rpg::Returned_TTRPG::new(&name, true).unwrap();
     load_entity.load_entity();
@@ -314,12 +306,16 @@ fn view_or_edit(view_edit: bool, name: &str, ctx: &egui::Context)
                 ui.horizontal_top(|ui| {
                     for story in load_entity.stories
                     {
-                        if view_edit
+                        if *view_edit
                         {
                             ui.collapsing(story.summarized.summary.get(&0).unwrap().text.clone(), |ui| {
                             // Get a summary as a header TODO: change the db so that it has labels instead
                             ui.strong(story.raw_narration);
                             });
+                        }
+                        else
+                        {
+                            
                         }
                     }
                 });
@@ -327,7 +323,7 @@ fn view_or_edit(view_edit: bool, name: &str, ctx: &egui::Context)
                 ui.horizontal_top(|ui| {
                     for attribute in load_entity.attributes
                     {
-                        if view_edit
+                        if *view_edit
                         {
                             ui.collapsing(attribute.description.text.clone(), |ui| {
                                 let outcome = attribute.attribute.clone();
@@ -337,11 +333,15 @@ fn view_or_edit(view_edit: bool, name: &str, ctx: &egui::Context)
                                 ui.strong(base_result);
                             });
                         }
+                        else
+                        {
+                                
+                        }
                     }
                 });
                 ui.label("Skills");
                 ui.horizontal_top(|ui| {
-                         
+                                            
                 });
                 ui.label("Counters");
                 ui.horizontal_top(|ui| {

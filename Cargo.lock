@@ -2465,7 +2465,6 @@ dependencies = [
  "entities",
  "gui",
  "narratives",
- "regex",
  "sqlite",
  "store_rpg",
 ]
