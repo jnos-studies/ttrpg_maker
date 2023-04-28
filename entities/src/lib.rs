@@ -237,6 +237,21 @@ impl SaveLoad for Skill {
         Ok(())
     }
     fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query = format!(
+            "
+            UPDATE skills SET description = '{}' WHERE roll_id = {};
+            UPDATE rolls SET dice_label = '{}', dice = {}, amount = {} WHERE skill_id = {}
+            ",
+            update_entity.description.text,
+            entity_id,
+            update_entity.roll.dice_label,
+            update_entity.roll.dice,
+            update_entity.roll.amount,
+            entity_id
+        );
+
+        connection.execute(query).unwrap();
         Ok(())
     }
 }
