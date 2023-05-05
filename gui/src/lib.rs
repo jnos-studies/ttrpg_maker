@@ -79,9 +79,10 @@ impl eframe::App for TTRPGMaker {
                 );
                 tabs.spacing_mut().item_spacing = egui::Vec2::new(0.0, 0.0);
                 let tabs_button_sizes = egui::Vec2::new(tabs.available_width() / 3.0, tabs.available_height());
-                let stroke = egui::Stroke::new(1.0, egui::Color32::GOLD);
+                let stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
                 let elements_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Elements").stroke(stroke));
                 let load_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Load").stroke(stroke));
+                let tools_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Tools").stroke(stroke));
                 
                 if elements_button.clicked()
                 {
@@ -171,7 +172,7 @@ impl eframe::App for TTRPGMaker {
                             }
                             if ui.button("Delete").clicked()
                             {
-                                if self.selected.is_some() && self.selected.as_deref().unwrap() != "None"
+                                if self.selected.is_some() && self.selected.as_deref().unwrap() != "None".to_string()
                                 {
                                     let to_delete = format!("{}", self.selected.as_deref().unwrap());
                                     // Remove memory of database from the list of databases and the
@@ -191,7 +192,7 @@ impl eframe::App for TTRPGMaker {
                         ui.horizontal(|ui| {
                             ui.heading("TTRPG Creator");
                             ui.label("Name: ");
-                            ui.horizontal_top(|ui| {
+                            ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut self.create_ttrpg);
                                 let create_button = egui::Button::new("Create");
                                 if ui.add(create_button).clicked()
