@@ -68,7 +68,7 @@ impl Default for TTRPGMaker
 
 impl eframe::App for TTRPGMaker {
     
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Create a UI with a label and a combo box
         egui::TopBottomPanel::top("tabs")
             .show_separator_line(false)
@@ -82,7 +82,7 @@ impl eframe::App for TTRPGMaker {
                 let stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
                 let elements_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Elements").stroke(stroke));
                 let load_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Load").stroke(stroke));
-                let tools_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Tools").stroke(stroke));
+                let _tools_button = tabs.add_sized(tabs_button_sizes, egui::Button::new("Tools").stroke(stroke));
                 
                 if elements_button.clicked()
                 {
@@ -134,14 +134,21 @@ impl eframe::App for TTRPGMaker {
                                     let selectable_value = ui.selectable_value(&mut self.selected, Some(db.clone()), db);
                                     if selectable_value.clicked()
                                     {
-                                        // Clear the elements hash booleans
+                                        // Clear elements, loaded ttrpgs and set the inline user
+                                        // input values to equal empty strings
                                         self.elements.clear();
-                                        let database_path = format!("saves/{}", self.selected.as_deref().unwrap().as_str());
-                                        let load_names = store_rpg::get_existing_ttrpgs_from_database(&database_path);
-                                        let default_check_box = Cell::new(false);
-                                        for name in load_names
+                                        self.loaded_ttrpg.clear();
+                                        self.create_database = "".to_string();
+                                        self.create_ttrpg = "".to_string();
+                                        if self.selected.as_deref().unwrap() != "None".to_string()
                                         {
-                                            self.elements.insert(name.clone(), default_check_box.get().clone().into());
+                                            let database_path = format!("saves/{}", self.selected.as_deref().unwrap().as_str());
+                                            let load_names = store_rpg::get_existing_ttrpgs_from_database(&database_path);
+                                            let default_check_box = Cell::new(false);
+                                            for name in load_names
+                                            {
+                                                self.elements.insert(name.clone(), default_check_box.get().clone().into());
+                                            }
                                         }
                                     }
                                 }
@@ -151,6 +158,7 @@ impl eframe::App for TTRPGMaker {
                             let new_db_path = format!("{}.db", self.create_database);
                             if ui.button("Create new").clicked()
                             {
+                                println!("{:#?}",self.databases);
                                 if !self.create_database.is_empty() &&
                                 !self.create_database.contains(char::is_whitespace)
                                 {
@@ -195,23 +203,26 @@ impl eframe::App for TTRPGMaker {
                             ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut self.create_ttrpg);
                                 let create_button = egui::Button::new("Create");
-                                if ui.add(create_button).clicked()
+                                if ui.add(create_button).clicked() &&
+                                self.selected.is_some() &&
+                                self.selected.as_deref().unwrap() != "None".to_string()
                                 {
                                     // The created ttrpg element will be inserted into the database
                                     // if it doesn't already exists. So if created_ttrpg returns
                                     // None, that means that the ttrpg already exists
                                     let created_ttrpg = store_rpg::Returned_TTRPG::new(&self.create_ttrpg, false);
-                                    if created_ttrpg.is_some()
+                                    if created_ttrpg.is_some() && !self.create_ttrpg.is_empty()
                                     {
                                         let ttrpg_value = created_ttrpg.unwrap();
                                         // push the name value onto the elements hash to load it
                                         self.elements.insert(ttrpg_value.name, std::cell::Cell::new(false));
+                                        self.create_ttrpg = "".to_string();
                                     }
                                 }
                             });
                         });
 
-                        if self.selected.is_some()
+                        if self.selected.is_some() && self.selected.as_deref().unwrap() != "None".to_string()
                         {
                             for (key, value) in self.elements.iter_mut()
                             {
@@ -341,15 +352,15 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                     }
                 });
                 ui.label("Skills");
-                ui.horizontal_top(|ui| {
+                ui.horizontal_top(|_ui| {
                                             
                 });
                 ui.label("Counters");
-                ui.horizontal_top(|ui| {
+                ui.horizontal_top(|_ui| {
                         
                 });
                 ui.label("Tables");
-                ui.horizontal_top(|ui| {
+                ui.horizontal_top(|_ui| {
                         
                 });
             });

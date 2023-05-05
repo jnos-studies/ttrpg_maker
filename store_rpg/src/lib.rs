@@ -20,7 +20,13 @@ impl Returned_TTRPG
 {
     pub fn new(name: &str, loading: bool) -> Option<Returned_TTRPG>
     {
-        let connection = sqlite::Connection::open(env::var("DATABASE_PATH").unwrap()).unwrap();
+        let connection = match sqlite::Connection::open(env::var("DATABASE_PATH").unwrap())
+        {
+            Ok(conn) => conn,
+            Err(_) => {
+                sqlite::Connection::open(":memory:").unwrap() //dummy connection if error is returned
+            }
+        };
         let mut exists = false;
         let mut ttrpg = Returned_TTRPG
         {
