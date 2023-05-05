@@ -24,7 +24,7 @@ impl Returned_TTRPG
         {
             Ok(conn) => conn,
             Err(_) => {
-                sqlite::Connection::open(":memory:").unwrap() //dummy connection if error is returned
+                return None
             }
         };
         let mut exists = false;

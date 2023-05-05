@@ -41,7 +41,6 @@ impl Default for TTRPGMaker
             .into_iter()
             .map(|db| {db.unwrap().file_name().into_string().unwrap()})
             .collect();
-       
 
         // Initialize the selected database to None
         let selected = None;
@@ -158,7 +157,6 @@ impl eframe::App for TTRPGMaker {
                             let new_db_path = format!("{}.db", self.create_database);
                             if ui.button("Create new").clicked()
                             {
-                                println!("{:#?}",self.databases);
                                 if !self.create_database.is_empty() &&
                                 !self.create_database.contains(char::is_whitespace)
                                 {
@@ -174,7 +172,7 @@ impl eframe::App for TTRPGMaker {
                                     if !paths.contains(&new_database.to_string())
                                     {
                                         self.databases.push(new_db_path.clone());
-                                        store_rpg::database_setup(&new_database.as_str())
+                                        store_rpg::database_setup(&new_database.as_str()) //TODO make this function return a result to handle the error if database defaults to dummy
                                     }
                                 }
                             }
