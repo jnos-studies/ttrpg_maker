@@ -21,7 +21,7 @@ whisper.cpp
 #ignore the testing samples used to test summary
 samples.txt
 
-#Ignore the databases of  saves directory for testing saves
+#Ignore the databases of saves directory for testing saves
 **/*.db
 
 #ignore .env file
@@ -29,3 +29,6 @@ samples.txt
 
 #ignore assets file
 /assets
+
+#ignore saves file entirely
+saves/*

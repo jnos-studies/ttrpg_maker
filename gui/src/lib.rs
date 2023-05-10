@@ -2,6 +2,7 @@ use eframe::egui;
 use eframe::egui::TextBuffer;
 use std::env;
 use store_rpg::*;
+use roll_dice::{Critical, Outcome, Roll};
 use sqlite;
 use std::collections::HashMap;
 use std::cell::Cell;
@@ -131,14 +132,14 @@ impl eframe::App for TTRPGMaker {
                                 for db in &self.databases
                                 {
                                     let selectable_value = ui.selectable_value(&mut self.selected, Some(db.clone()), db);
+                                    
                                     if selectable_value.clicked()
                                     {
-                                        // Clear elements, loaded ttrpgs and set the inline user
-                                        // input values to equal empty strings
                                         self.elements.clear();
                                         self.loaded_ttrpg.clear();
                                         self.create_database = "".to_string();
                                         self.create_ttrpg = "".to_string();
+                                        
                                         if self.selected.as_deref().unwrap() != "None".to_string()
                                         {
                                             let database_path = format!("saves/{}", self.selected.as_deref().unwrap().as_str());
@@ -180,10 +181,17 @@ impl eframe::App for TTRPGMaker {
                             {
                                 if self.selected.is_some() && self.selected.as_deref().unwrap() != "None".to_string()
                                 {
+                                    //Clear the the following when db is deleted also
+                                    self.elements.clear();
+                                    self.loaded_ttrpg.clear();
+                                    self.create_database = "".to_string();
+                                    self.create_ttrpg = "".to_string();
+
                                     let to_delete = format!("{}", self.selected.as_deref().unwrap());
                                     // Remove memory of database from the list of databases and the
                                     // physical file
                                     self.databases.retain(|db| *db != to_delete.to_string());
+                                    self.databases.retain(|db| *db != "None".to_string()); // delete None bug if present
                                     std::fs::remove_file(format!("saves/{}", to_delete)).unwrap();
                                     self.selected = Some("None".to_string());
                                 }
@@ -219,7 +227,9 @@ impl eframe::App for TTRPGMaker {
                                 }
                             });
                         });
-
+                        
+                        // Handles the selection and deselection of ttrpg elements that get loaded
+                        // later in the view_edit function.
                         if self.selected.is_some() && self.selected.as_deref().unwrap() != "None".to_string()
                         {
                             for (key, value) in self.elements.iter_mut()
@@ -258,6 +268,9 @@ impl eframe::App for TTRPGMaker {
                         value.load_entity();
                         ui.collapsing(key, |ui|
                         {
+                            // Selected ttrpgs get loaded here, but only to count the number of
+                            // elements in it. This is not that efficient as it gets loaded twice
+                            // essentially, but atm it is just to make it work.
                             ui.horizontal_top(|ui|
                             {
                                 let mut reload_to_view = store_rpg::Returned_TTRPG::new(value.name.clone().as_str(), true).unwrap();
@@ -291,7 +304,8 @@ impl eframe::App for TTRPGMaker {
 
         if self.view_edit.get()
         {
-            
+           // TODO: Loop through self.loaded_ttrpg and load each element in ttrpg
+           println!("{}", self.loaded_ttrpg.len());
         }
 
 
@@ -335,6 +349,7 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                     {
                         if *view_edit
                         {
+                            
                             ui.collapsing(attribute.description.text.clone(), |ui| {
                                 let outcome = attribute.attribute.clone();
                                 ui.strong(outcome.roll_description);
@@ -350,8 +365,26 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                     }
                 });
                 ui.label("Skills");
-                ui.horizontal_top(|_ui| {
-                                            
+                ui.horizontal_top(|ui| {
+                    for skill in load_entity.skills
+                    {
+                        if *view_edit
+                        {
+                            let skill_copy = skill.clone();
+                            ui.collapsing(skill_copy.description.text, |ui| {
+                                ui.label(skill_copy.roll.dice_label);
+                                if ui.small_button("Roll skill").clicked()
+                                {
+                                    //TODO: create a critical setting on the load page
+                                    //let outcome_of_roll = Outcome::new(&skill_copy.roll,)
+                                }
+                            });
+                        }
+                        else
+                        {
+                            
+                        }
+                    }
                 });
                 ui.label("Counters");
                 ui.horizontal_top(|_ui| {
