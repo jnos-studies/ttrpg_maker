@@ -93,7 +93,7 @@ impl Returned_TTRPG
         prepare_tables.bind((1, self.id as i64)).unwrap();
 
         let mut tables_to_search = Vec::new();
-        // TODO: Make all of the loading while loops run on different threads perhaps?
+        
         while let Ok(sqlite::State::Row) = prepare_stories.next()
         {
             let story_text = narratives::TypedNarrative::new(prepare_stories.read::<String,_>("text_data").unwrap().clone());
@@ -263,4 +263,35 @@ pub fn get_existing_ttrpgs_from_database(database_path: &str) -> Vec<String>
         true
     }).unwrap();
     ttrpg_names
+}
+// Will panic
+pub fn delete_ttrpg(database_path: &str, ttrpg_id: u32, ttrpg_name: &str) -> String
+{
+    let connection = sqlite::Connection::open(database_path).unwrap();
+    let query = format!(
+        "
+        DELETE FROM ttrpgs WHERE id = {};
+        DELETE FROM stories WHERE ttrpg_id = {};
+        DELETE FROM attribute_outcomes WHERE attribute_id = (SELECT id FROM attributes WHERE id = {});
+        DELETE FROM attributes WHERE ttrpg_id = {};
+        DELETE FROM rolls WHERE ttrpg_id = {};
+        DELETE FROM skills WHERE ttrpg_id = {};
+        DELETE FROM counters WHERE ttrpg_id = {};
+        DELETE FROM table_values WHERE table_id = (SELECT id FROM tables WHERE ttrpg_id = {});
+        DELETE FROM tables WHERE ttrpg_id = {}; 
+        ",
+        ttrpg_id,
+        ttrpg_id,
+        ttrpg_id,
+        ttrpg_id,
+        ttrpg_id,
+        ttrpg_id,
+        ttrpg_id,
+        ttrpg_id,
+        ttrpg_id
+        );
+
+        connection.execute(query).unwrap();
+
+        String::from(format!("TTRPG {} successfully deleted!", ttrpg_name))
 }

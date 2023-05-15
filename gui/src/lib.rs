@@ -234,12 +234,16 @@ impl eframe::App for TTRPGMaker {
                         {
                             for (key, value) in self.elements.iter_mut()
                             {
-                                if ui.add(egui::Checkbox::new(&mut value.get(), key)).clicked()
+                                // Add the delete and Checkbox selector
+                                let check_val = &mut value.get();
+                                let check_box = egui::Checkbox::new(check_val, key.clone());
+                                let delete_button = egui::Button::new("Delete");
+                                if ui.add(check_box).clicked()
                                 {
                                     if value.get() == true
                                     {
                                         value.set(false);
-                                        let _removed_val = self.loaded_ttrpg.remove(key); // Gets dropped
+                                        let _removed_val = self.loaded_ttrpg.remove(key.clone().as_str()); // Gets dropped
                                     }
                                     else
                                     {
@@ -248,6 +252,11 @@ impl eframe::App for TTRPGMaker {
                                             key.clone(),
                                             store_rpg::Returned_TTRPG::new(key.as_str(), true).unwrap());
                                     }
+                                }
+                                // Delete from selected database
+                                if ui.add(delete_button).clicked()
+                                {
+                                    
                                 }
                             }
                         }
