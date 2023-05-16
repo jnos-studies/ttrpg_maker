@@ -3,10 +3,9 @@ use eframe::egui::TextBuffer;
 use std::env;
 use store_rpg::*;
 use roll_dice::{Critical, Outcome, Roll};
-use sqlite;
 use std::collections::HashMap;
+use sqlite;
 use std::cell::Cell;
-
 
 
 pub struct TTRPGMaker
@@ -232,32 +231,53 @@ impl eframe::App for TTRPGMaker {
                         // later in the view_edit function.
                         if self.selected.is_some() && self.selected.as_deref().unwrap() != "None".to_string()
                         {
+                            // Temp variable to hold the name of the element that needs to be
+                            // removed from self.elements to delete the ui
+                            let mut element_to_delete = "".to_string();
                             for (key, value) in self.elements.iter_mut()
                             {
                                 // Add the delete and Checkbox selector
                                 let check_val = &mut value.get();
                                 let check_box = egui::Checkbox::new(check_val, key.clone());
-                                let delete_button = egui::Button::new("Delete");
-                                if ui.add(check_box).clicked()
-                                {
-                                    if value.get() == true
+                                let delete_button = egui::Button::new("Delete").small();
+                                ui.horizontal(|ui|{
+                                    if ui.add(check_box).clicked()
                                     {
-                                        value.set(false);
-                                        let _removed_val = self.loaded_ttrpg.remove(key.clone().as_str()); // Gets dropped
+                                        if value.get() == true
+                                        {
+                                            value.set(false);
+                                            let _removed_val = self.loaded_ttrpg.remove(key.clone().as_str()); // Gets dropped
+                                        }
+                                        else
+                                        {
+                                            value.set(true);
+                                            self.loaded_ttrpg.insert(
+                                                key.clone(),
+                                                store_rpg::Returned_TTRPG::new(key.as_str(), true).unwrap());
+                                        }
                                     }
-                                    else
+                                    // Delete from selected database
+                                    if ui.add(delete_button).clicked()
                                     {
-                                        value.set(true);
-                                        self.loaded_ttrpg.insert(
-                                            key.clone(),
-                                            store_rpg::Returned_TTRPG::new(key.as_str(), true).unwrap());
+                                        let reload_ttrpg = store_rpg::Returned_TTRPG::new(key, true).unwrap();
+                                        let current_db = env::var("DATABASE_PATH").unwrap();
+                                        store_rpg::delete_ttrpg(
+                                            &current_db,
+                                            reload_ttrpg.id,
+                                            &reload_ttrpg.name
+                                        );
+                                        self.loaded_ttrpg.remove(key);
+                                        // figure out how to reload so that the ui elements delete when
+                                        // deleted from the database
+                                        element_to_delete = reload_ttrpg.name;
                                     }
-                                }
-                                // Delete from selected database
-                                if ui.add(delete_button).clicked()
-                                {
-                                    
-                                }
+                                });
+                            }
+                            //Remove the element from self.elements which then removes the checkbox
+                            //and delete button from the ui
+                            if element_to_delete.len() > 0
+                            {
+                                self.elements.remove(&element_to_delete);
                             }
                         }
                     });
