@@ -229,6 +229,7 @@ pub fn database_setup(database_path: &str)
         );
   
         CREATE TABLE counters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             ttrpg_id INTEGER NOT NULL,
             description TEXT NOT NULL,
             number INTEGER NOT NULL,

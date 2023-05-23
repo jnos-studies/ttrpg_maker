@@ -90,16 +90,19 @@ impl Table {
     }
 }
 
-// Implement save method for all entity objects
+// Implement save method for all entity object. Entity id for the update function are accessed when
+// loading the values from the database into the UI
 pub trait SaveLoad {
     type Entity;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>;
     fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>;
+    fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>;
 }
 
 impl SaveLoad for Story {
     type Entity = Story;
-    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
+    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>
+    {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query = format!(
             "
@@ -128,11 +131,16 @@ impl SaveLoad for Story {
         connection.execute(query).unwrap();
         Ok(())
     }
+    fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
+    {
+        Ok(())
+    }
 }
 
 impl SaveLoad for Attribute {
     type Entity = Attribute;
-    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
+    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>
+    {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_attribute = format!(
             "
@@ -189,11 +197,17 @@ impl SaveLoad for Attribute {
         Ok(())
         
     }
+    fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
+    {
+        Ok(())
+    }
 }
 
-impl SaveLoad for Skill {
+impl SaveLoad for Skill
+{
     type Entity = Skill;
-    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
+    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>
+    {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_roll = format!(
             "
@@ -236,7 +250,8 @@ impl SaveLoad for Skill {
 
         Ok(())
     }
-    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>
+    {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
             "
@@ -254,11 +269,16 @@ impl SaveLoad for Skill {
         connection.execute(query).unwrap();
         Ok(())
     }
+    fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
+    {
+        Ok(())
+    }
 }
 
 impl SaveLoad for Counter {
     type Entity = Counter;
-    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
+    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>
+    {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query = format!(
             "
@@ -278,12 +298,13 @@ impl SaveLoad for Counter {
         Ok(())
     }
 
-    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>
+    {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
             "
-            UPDATE counters SET description = '{}' WHERE ttrpg_id = {};
-            UPDATE counters SET number = {} WHERE ttrpg_id = {};
+            UPDATE counters SET description = '{}' WHERE id = {};
+            UPDATE counters SET number = {} WHERE id = {};
             ",
             update_entity.description.text,
             entity_id,
@@ -294,11 +315,16 @@ impl SaveLoad for Counter {
         connection.execute(query).unwrap();
         Ok(())
     }
+    fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
+    {
+        Ok(())
+    }
 }
 
 impl SaveLoad for Table {
     type Entity = Table;
-    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String> {
+    fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>
+    {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_table = format!(
             "
@@ -319,7 +345,8 @@ impl SaveLoad for Table {
             true
         }).unwrap();
         
-        for (key, value) in self.table.table.iter(){
+        for (key, value) in self.table.table.iter()
+        {
             let query_table_values = format!(
                 "
                     INSERT INTO table_values (
@@ -341,7 +368,44 @@ impl SaveLoad for Table {
         Ok(())
     }
 
-    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
+    fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>
+    {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query_table = format!(
+            "
+            UPDATE tables SET description = '{}' WHERE id = {};
+            DELETE FROM table_values WHERE table_id = {};
+            ",
+            update_entity.description.text,
+            entity_id,
+            entity_id
+        );
+        connection.execute(query_table).unwrap();
+        // re - add all of the updated table values
+        for (key, value) in update_entity.table.table.iter()
+        {
+              let query_table_values = format!(                                                          
+                  "
+                      INSERT INTO table_values (                                                         
+                          table_id,                                                                      
+                          lower_range,                                                                   
+                          higher_range,
+                          text_value
+                      )
+                      VALUES ({}, {}, {}, '{}')                                                          
+                  ",
+                  entity_id,
+                  key.0, // lower_range
+                  key.1, // higher_range                                                                 
+                  value  //text_value                                                                    
+              );
+              connection.execute(query_table_values).unwrap();                                           
+          }
+        
+        Ok(())
+    }
+    fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
+    {
         Ok(())
     }
 }
