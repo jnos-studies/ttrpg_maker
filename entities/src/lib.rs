@@ -279,6 +279,19 @@ impl SaveLoad for Counter {
     }
 
     fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String> {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query = format!(
+            "
+            UPDATE counters SET description = '{}' WHERE ttrpg_id = {};
+            UPDATE counters SET number = {} WHERE ttrpg_id = {};
+            ",
+            update_entity.description.text,
+            entity_id,
+            update_entity.number,
+            entity_id
+        );
+
+        connection.execute(query).unwrap();
         Ok(())
     }
 }
