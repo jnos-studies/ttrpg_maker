@@ -90,8 +90,8 @@ impl Table {
     }
 }
 
-// Implement save method for all entity object. Entity id for the update function are accessed when
-// loading the values from the database into the UI
+/// Implement save method for all entity object. Entity id for the update function are accessed when
+/// loading the values from the database into the UI
 pub trait SaveLoad {
     type Entity;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>;
@@ -133,6 +133,9 @@ impl SaveLoad for Story {
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query = format!("DELETE FROM stories WHERE id = {};", entity_id);
+        connection.execute(query).unwrap();
         Ok(())
     }
 }
@@ -199,12 +202,21 @@ impl SaveLoad for Attribute {
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query = format!(
+            "
+            DELETE FROM attribute_outcomes WHERE attribute_id = {};
+            DELETE FROM attributes WHERE id = {};
+            ",
+            entity_id,
+            entity_id
+        );
+        connection.execute(query).unwrap();
         Ok(())
     }
 }
 
-impl SaveLoad for Skill
-{
+impl SaveLoad for Skill {
     type Entity = Skill;
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>
     {
@@ -271,6 +283,19 @@ impl SaveLoad for Skill
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        // skills and there respective rolls share a mutal id, so skills ids are dependant on rolls
+        // which has autoincrement for the skill_id column. This does not mean that every roll has
+        // to have a corresponding skill
+        let query = format!(
+            "
+            DELETE FROM rolls WHERE skill_id = {};
+            DELETE FROM skills WHERE roll_id = {};
+            ",
+            entity_id,
+            entity_id
+        );
+        connection.execute(query).unwrap();
         Ok(())
     }
 }
@@ -297,7 +322,6 @@ impl SaveLoad for Counter {
 
         Ok(())
     }
-
     fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>
     {
         let connection = sqlite::Connection::open(database_path).unwrap();
@@ -317,6 +341,14 @@ impl SaveLoad for Counter {
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query = format!(
+            "
+            DELETE FROM counters WHERE id = {}
+            ",
+            entity_id
+        );
+        connection.execute(query).unwrap();
         Ok(())
     }
 }
@@ -406,6 +438,16 @@ impl SaveLoad for Table {
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
+        let connection = sqlite::Connection::open(database_path).unwrap();
+        let query = format!(
+            "
+            DELETE FROM table_values WHERE table_id = {};
+            DELETE FROM tables WHERE id = {};
+            ",
+            entity_id,
+            entity_id
+        );
+        connection.execute(query).unwrap();
         Ok(())
     }
 }

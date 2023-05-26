@@ -114,7 +114,8 @@ impl Returned_TTRPG
                 max: 0,
                 min: 0,
                 attribute: true,
-                critical: 1 //roll_dice::Critical::One // TODO: change this to be an environment variable the user can select.
+                // Configurable setting defaults to 1 for critical
+                critical: env::var("CRITICAL_SETTING").unwrap().parse::<u32>().unwrap()
             };
             self.attributes.push(entities::Attribute::new(text_to_typed_narrative, outcome));
         }
