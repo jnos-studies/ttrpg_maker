@@ -334,6 +334,7 @@ impl eframe::App for TTRPGMaker {
         if self.view_edit.get()
         {
            // TODO: Loop through self.loaded_ttrpg and load each element in ttrpg
+           // Need to add the name of ttrpg element that is to be loaded into view_or_edit function
            println!("{}", self.loaded_ttrpg.len());
         }
 
@@ -362,7 +363,7 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                         if *view_edit
                         {
                             ui.collapsing(story.summarized.summary.get(&0).unwrap().text.clone(), |ui| {
-                            // Get a summary as a header TODO: change the db so that it has labels instead
+                            // Get a summary as a header
                             ui.strong(story.raw_narration);
                             });
                         }
