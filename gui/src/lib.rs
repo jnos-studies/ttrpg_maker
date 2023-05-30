@@ -6,10 +6,9 @@ use roll_dice::{Critical, Outcome, Roll};
 use std::collections::HashMap;
 use sqlite;
 use std::cell::Cell;
+use uuid::Uuid;
 
-
-pub struct TTRPGMaker
-{
+pub struct TTRPGMaker {
     load_database: Cell<bool>,
     load_elements: Cell<bool>,
     view_edit: Cell<bool>,
@@ -21,7 +20,6 @@ pub struct TTRPGMaker
     elements: HashMap<String, Cell<bool>>,
     loaded_ttrpg: HashMap<String, Returned_TTRPG>
 }
-
 
 impl Default for TTRPGMaker
 {
@@ -44,7 +42,6 @@ impl Default for TTRPGMaker
 
         // Initialize the selected database to None
         let selected = None;
-
         // elements hashmap for determining what should be loaded onto self.loaded_ttrpg
         let elements = HashMap::new();
         let loaded_ttrpg = HashMap::new();
@@ -64,7 +61,6 @@ impl Default for TTRPGMaker
         }
     }
 }
-
 impl eframe::App for TTRPGMaker {
     
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -333,9 +329,12 @@ impl eframe::App for TTRPGMaker {
 
         if self.view_edit.get()
         {
-           // TODO: Loop through self.loaded_ttrpg and load each element in ttrpg
-           // Need to add the name of ttrpg element that is to be loaded into view_or_edit function
-           println!("{}", self.loaded_ttrpg.len());
+            // for loop for debugging purposes
+            let clone_loaded_ttrpgs = self.loaded_ttrpg.clone();
+            for (key, val) in self.loaded_ttrpg.iter() {
+                println!("ttrpg name: {}, val: {:#?}", key, val.id);
+            }
+            view_or_edit(&self.view_edit.get(), clone_loaded_ttrpgs, ctx);
         }
 
 
@@ -347,24 +346,27 @@ impl eframe::App for TTRPGMaker {
     }
 }
 
-fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
+// If the variable bool view_edit = true the ui will generate a view of the data, Edit will
+// generate an editing view of the data
+fn view_or_edit(view_edit: &bool, hashmap_rpgs: HashMap<String, Returned_TTRPG>, ctx: &egui::Context)
 {
-    let mut load_entity = store_rpg::Returned_TTRPG::new(&name, true).unwrap();
-    load_entity.load_entity();
-    
+    //TODO create a unique id for the SidePanel or use a different egui struct to push UIs with
+    //unique ids
+    let iterative_hash = hashmap_rpgs.iter();
+    for (key, val) in iterative_hash { 
     egui::SidePanel::right("view_or_edit")
         .show(ctx, |ui| {
-            ui.heading(&load_entity.name);
+            ui.set_width(ui.available_width());
+            ui.heading(key);
             ui.vertical(|ui| {
                 ui.label("Stories");
                 ui.horizontal_top(|ui| {
-                    for story in load_entity.stories
+                    for story in &val.stories
                     {
-                        if *view_edit
-                        {
+                        if *view_edit {
                             ui.collapsing(story.summarized.summary.get(&0).unwrap().text.clone(), |ui| {
                             // Get a summary as a header
-                            ui.strong(story.raw_narration);
+                            ui.strong(&story.raw_narration);
                             });
                         }
                         else
@@ -375,11 +377,10 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                 });
                 ui.label("Attributes");
                 ui.horizontal_top(|ui| {
-                    for attribute in load_entity.attributes
+                    for attribute in &val.attributes
                     {
                         if *view_edit
                         {
-                            
                             ui.collapsing(attribute.description.text.clone(), |ui| {
                                 let outcome = attribute.attribute.clone();
                                 ui.strong(outcome.roll_description);
@@ -396,7 +397,7 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                 });
                 ui.label("Skills");
                 ui.horizontal_top(|ui| {
-                    for skill in load_entity.skills
+                    for skill in &val.skills
                     {
                         if *view_edit
                         {
@@ -405,7 +406,6 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                                 ui.label(skill_copy.roll.dice_label);
                                 if ui.small_button("Roll skill").clicked()
                                 {
-                                    //TODO: create a critical setting on the load page
                                     //let outcome_of_roll = Outcome::new(&skill_copy.roll,)
                                 }
                             });
@@ -426,15 +426,16 @@ fn view_or_edit(view_edit: &bool, name: &str, ctx: &egui::Context)
                 });
             });
         });
+    }
 }
 
 pub fn start_app_main() -> Result<(), eframe::Error>
-  {
-      let options = eframe::NativeOptions::default();
-      eframe::run_native(
-          "TTRPG Maker",
-          options,
-          Box::new(|_cc| Box::new(TTRPGMaker::default())),
-      )
+{
+    let options = eframe::NativeOptions::default();
+    eframe::run_native(
+    "TTRPG Maker",
+    options,
+    Box::new(|_cc| Box::new(TTRPGMaker::default())),
+    )
   }
 

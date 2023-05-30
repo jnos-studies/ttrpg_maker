@@ -4,6 +4,7 @@ use sqlite;
 
 // Story
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Story {
     pub raw_narration: String,
     pub summarized: AutoNarrative

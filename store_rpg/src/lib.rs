@@ -4,6 +4,7 @@ use entities::*;
 use narratives::*;
 use roll_dice::*;
 
+#[derive(Clone)]
 pub struct Returned_TTRPG
 {
     pub name: String,
@@ -14,7 +15,6 @@ pub struct Returned_TTRPG
     pub counters: Vec<entities::Counter>,
     pub tables: Vec<entities::Table>
 }
-
 
 impl Returned_TTRPG
 {
