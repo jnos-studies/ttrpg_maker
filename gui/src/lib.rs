@@ -6,12 +6,12 @@ use roll_dice::{Critical, Outcome, Roll};
 use std::collections::HashMap;
 use sqlite;
 use std::cell::Cell;
-use uuid::Uuid;
 
 pub struct TTRPGMaker {
     load_database: Cell<bool>,
     load_elements: Cell<bool>,
     view_edit: Cell<bool>,
+    selected_el: String,
     create_database: String,
     create_ttrpg: String,
     conn: sqlite::Connection,
@@ -42,6 +42,7 @@ impl Default for TTRPGMaker
 
         // Initialize the selected database to None
         let selected = None;
+        let selected_el = "".to_string();
         // elements hashmap for determining what should be loaded onto self.loaded_ttrpg
         let elements = HashMap::new();
         let loaded_ttrpg = HashMap::new();
@@ -56,6 +57,7 @@ impl Default for TTRPGMaker
             conn,
             databases,
             selected,
+            selected_el,
             elements,
             loaded_ttrpg
         }
@@ -306,11 +308,13 @@ impl eframe::App for TTRPGMaker {
                                 if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("View")).clicked()
                                 {
                                     self.view_edit.set(true);
+                                    self.selected_el = value.name.clone();
                                 }
                             
                                 if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("Edit")).clicked()
                                 {
                                     self.view_edit.set(false);
+                                    self.selected_el = value.name.clone();
                                 }
                             });
                             let ttrpg_info = format!("Element Overview\n\nStories: {}\nAttributes: {}\nSkills: {}\nCounters:{}\nTables: {}",
@@ -327,14 +331,14 @@ impl eframe::App for TTRPGMaker {
             });
         }
 
-        if self.view_edit.get()
+        if self.view_edit.get() || self.view_edit.get() == false // If true or false
         {
-            // for loop for debugging purposes
-            let clone_loaded_ttrpgs = self.loaded_ttrpg.clone();
-            for (key, val) in self.loaded_ttrpg.iter() {
-                println!("ttrpg name: {}, val: {:#?}", key, val.id);
-            }
-            view_or_edit(&self.view_edit.get(), clone_loaded_ttrpgs, ctx);
+            egui::SidePanel::right("ViewEditPanel")
+                .exact_width(ctx.available_rect().width())
+                .show(ctx, |ui| {
+                let clone_loaded_ttrpgs = self.loaded_ttrpg.clone();
+                view_or_edit(&self.view_edit.get(), &self.selected_el, clone_loaded_ttrpgs, ui);
+                });
         }
 
 
@@ -348,84 +352,97 @@ impl eframe::App for TTRPGMaker {
 
 // If the variable bool view_edit = true the ui will generate a view of the data, Edit will
 // generate an editing view of the data
-fn view_or_edit(view_edit: &bool, hashmap_rpgs: HashMap<String, Returned_TTRPG>, ctx: &egui::Context)
+fn view_or_edit(view_edit: &bool, selected_el: &String, hashmap_rpgs: HashMap<String, Returned_TTRPG>, mut_ui: &mut egui::Ui)
 {
-    //TODO create a unique id for the SidePanel or use a different egui struct to push UIs with
-    //unique ids
     let iterative_hash = hashmap_rpgs.iter();
-    for (key, val) in iterative_hash { 
-    egui::SidePanel::right("view_or_edit")
-        .show(ctx, |ui| {
-            ui.set_width(ui.available_width());
-            ui.heading(key);
-            ui.vertical(|ui| {
-                ui.label("Stories");
-                ui.horizontal_top(|ui| {
-                    for story in &val.stories
-                    {
+    for (key, val) in iterative_hash {
+    if selected_el == key
+    {
+        egui::CollapsingHeader::new(key)
+            .default_open(true)
+            .show(mut_ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.heading(key);
+                ui.vertical(|ui| {
+                    ui.label("Stories");
+                    let id = format!("{}", val.id);
+                    ui.collapsing(id, |ui| {
                         if *view_edit {
-                            ui.collapsing(story.summarized.summary.get(&0).unwrap().text.clone(), |ui| {
-                            // Get a summary as a header
-                            ui.strong(&story.raw_narration);
-                            });
-                        }
-                        else
-                        {
-                            
-                        }
-                    }
-                });
-                ui.label("Attributes");
-                ui.horizontal_top(|ui| {
-                    for attribute in &val.attributes
-                    {
-                        if *view_edit
-                        {
-                            ui.collapsing(attribute.description.text.clone(), |ui| {
-                                let outcome = attribute.attribute.clone();
-                                ui.strong(outcome.roll_description);
-                                ui.label("Base Result: ");
-                                let base_result = format!("Base Result: {}", outcome.base_result.clone());
-                                ui.strong(base_result);
-                            });
-                        }
-                        else
-                        {
-                                
-                        }
-                    }
-                });
-                ui.label("Skills");
-                ui.horizontal_top(|ui| {
-                    for skill in &val.skills
-                    {
-                        if *view_edit
-                        {
-                            let skill_copy = skill.clone();
-                            ui.collapsing(skill_copy.description.text, |ui| {
-                                ui.label(skill_copy.roll.dice_label);
-                                if ui.small_button("Roll skill").clicked()
+                            if &val.stories.len() > &0 {
+                                for story in &val.stories
                                 {
-                                    //let outcome_of_roll = Outcome::new(&skill_copy.roll,)
+                                    ui.collapsing(story.summarized.summary.get(&0).unwrap().text.clone(), |ui| {
+                                    // Get a summary as a header
+                                    ui.strong(&story.raw_narration);
+                                    });
                                 }
-                            });
+                            }
+                            else {
+                                ui.label("No stories");
+                            }
                         }
-                        else
+                        else {
+                            if &val.stories.len() > &0 {
+                                ui.label("Edit existing stories");
+                            }
+                            else{
+                                ui.label("Edit / Create New");
+                            }
+                        }
+                    });
+                    ui.label("Attributes");
+                    ui.horizontal_top(|ui| {
+                        for attribute in &val.attributes
                         {
-                            
+                            if *view_edit
+                            {
+                                ui.collapsing(attribute.description.text.clone(), |ui| {
+                                    let outcome = attribute.attribute.clone();
+                                    ui.strong(outcome.roll_description);
+                                    ui.label("Base Result: ");
+                                    let base_result = format!("Base Result: {}", outcome.base_result.clone());
+                                    ui.strong(base_result);
+                                });
+                            }
+                            else
+                            {
+                                
+                            }
                         }
-                    }
-                });
-                ui.label("Counters");
-                ui.horizontal_top(|_ui| {
-                        
-                });
-                ui.label("Tables");
-                ui.horizontal_top(|_ui| {
-                        
+                    });
+                    ui.label("Skills");
+                    ui.horizontal_top(|ui| {
+                        for skill in &val.skills
+                        {
+                            if *view_edit
+                            {
+                                let skill_copy = skill.clone();
+                                ui.collapsing(skill_copy.description.text, |ui| {
+                                    ui.label(skill_copy.roll.dice_label);
+                                    if ui.small_button("Roll skill").clicked()
+                                    {
+                                        //let outcome_of_roll = Outcome::new(&skill_copy.roll,)
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                
+                            }
+                        }
+                    });
+                    ui.label("Counters");
+                    ui.horizontal_top(|_ui| {
+                            
+                    });
+                    ui.label("Tables");
+                    ui.horizontal_top(|_ui| {
+                            
+                    });
                 });
             });
-        });
+    
+        }
     }
 }
 
