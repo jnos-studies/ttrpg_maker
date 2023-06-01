@@ -9,4 +9,4 @@ edition = "2021"
 roll_dice = {path = "../roll_dice"}
 narratives = {path = "../narratives"}
 sqlite = "0.30.4"
-uuid = "0.8"
+eframe = "0.21.3"

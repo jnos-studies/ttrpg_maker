@@ -1,5 +1,6 @@
 use eframe::egui;
 use eframe::egui::TextBuffer;
+use entities::{Story, SaveLoad};
 use std::env;
 use store_rpg::*;
 use roll_dice::{Critical, Outcome, Roll};
@@ -18,7 +19,8 @@ pub struct TTRPGMaker {
     databases: Vec<String>,
     selected: Option<String>,
     elements: HashMap<String, Cell<bool>>,
-    loaded_ttrpg: HashMap<String, Returned_TTRPG>
+    loaded_ttrpg: HashMap<String, Returned_TTRPG>,
+    new_text: String
 }
 
 impl Default for TTRPGMaker
@@ -46,6 +48,7 @@ impl Default for TTRPGMaker
         // elements hashmap for determining what should be loaded onto self.loaded_ttrpg
         let elements = HashMap::new();
         let loaded_ttrpg = HashMap::new();
+        let new_text = "".to_string();
         
         Self
         {
@@ -59,7 +62,8 @@ impl Default for TTRPGMaker
             selected,
             selected_el,
             elements,
-            loaded_ttrpg
+            loaded_ttrpg,
+            new_text
         }
     }
 }
@@ -336,112 +340,42 @@ impl eframe::App for TTRPGMaker {
             egui::SidePanel::right("ViewEditPanel")
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
-                let clone_loaded_ttrpgs = self.loaded_ttrpg.clone();
-                view_or_edit(&self.view_edit.get(), &self.selected_el, clone_loaded_ttrpgs, ui);
-                });
-        }
+                    for (key, value) in self.loaded_ttrpg.iter_mut() {
+                        let title = format!("{} Stories", key);
+                        ui.collapsing(title, |ui| {
+                            if self.selected_el == *key && self.view_edit.get() {
+                                for story in value.stories.iter_mut() {
+                                    ui.strong(&story.raw_narration);
+                                }
+                            }
+                            else if value.stories.len() > 0 && self.selected_el == *key{
+                                for story in value.stories.iter_mut() {
+                                    ui.text_edit_multiline(story);
+                                }
+                            }
+                            else if self.selected_el == *key {
+                                ui.text_edit_multiline(&mut self.new_text);
+                                if ui.button("Save").clicked() {
 
+                                    let db_path = format!("saves/{}", &self.selected.as_deref().unwrap());
+                                    let new_story = Story::new(narratives::TypedNarrative { text: self.new_text.clone()});
+
+                                    new_story.save(db_path.as_str(), value.id).unwrap();
+                                    self.selected_el = "".to_string();
+                                    //FIXME story should only be saved once this loops for infitiy.
+                                    //not good at all
+                                    //value.stories.push(new_story)
+                                }
+                            }
+                        });
+                    }
+            });
+        }
 
         if self.selected.is_some()
         {
             let selected_ref = self.selected.as_deref().unwrap();
             env::set_var("DATABASE_PATH", format!("saves/{}",selected_ref));
-        }
-    }
-}
-
-// If the variable bool view_edit = true the ui will generate a view of the data, Edit will
-// generate an editing view of the data
-fn view_or_edit(view_edit: &bool, selected_el: &String, hashmap_rpgs: HashMap<String, Returned_TTRPG>, mut_ui: &mut egui::Ui)
-{
-    let iterative_hash = hashmap_rpgs.iter();
-    for (key, val) in iterative_hash {
-    if selected_el == key
-    {
-        egui::CollapsingHeader::new(key)
-            .default_open(true)
-            .show(mut_ui, |ui| {
-                ui.set_width(ui.available_width());
-                ui.heading(key);
-                ui.vertical(|ui| {
-                    ui.label("Stories");
-                    let id = format!("{}", val.id);
-                    ui.collapsing(id, |ui| {
-                        if *view_edit {
-                            if &val.stories.len() > &0 {
-                                for story in &val.stories
-                                {
-                                    ui.collapsing(story.summarized.summary.get(&0).unwrap().text.clone(), |ui| {
-                                    // Get a summary as a header
-                                    ui.strong(&story.raw_narration);
-                                    });
-                                }
-                            }
-                            else {
-                                ui.label("No stories");
-                            }
-                        }
-                        else {
-                            if &val.stories.len() > &0 {
-                                ui.label("Edit existing stories");
-                            }
-                            else{
-                                ui.label("Edit / Create New");
-                            }
-                        }
-                    });
-                    ui.label("Attributes");
-                    ui.horizontal_top(|ui| {
-                        for attribute in &val.attributes
-                        {
-                            if *view_edit
-                            {
-                                ui.collapsing(attribute.description.text.clone(), |ui| {
-                                    let outcome = attribute.attribute.clone();
-                                    ui.strong(outcome.roll_description);
-                                    ui.label("Base Result: ");
-                                    let base_result = format!("Base Result: {}", outcome.base_result.clone());
-                                    ui.strong(base_result);
-                                });
-                            }
-                            else
-                            {
-                                
-                            }
-                        }
-                    });
-                    ui.label("Skills");
-                    ui.horizontal_top(|ui| {
-                        for skill in &val.skills
-                        {
-                            if *view_edit
-                            {
-                                let skill_copy = skill.clone();
-                                ui.collapsing(skill_copy.description.text, |ui| {
-                                    ui.label(skill_copy.roll.dice_label);
-                                    if ui.small_button("Roll skill").clicked()
-                                    {
-                                        //let outcome_of_roll = Outcome::new(&skill_copy.roll,)
-                                    }
-                                });
-                            }
-                            else
-                            {
-                                
-                            }
-                        }
-                    });
-                    ui.label("Counters");
-                    ui.horizontal_top(|_ui| {
-                            
-                    });
-                    ui.label("Tables");
-                    ui.horizontal_top(|_ui| {
-                            
-                    });
-                });
-            });
-    
         }
     }
 }
@@ -454,5 +388,5 @@ pub fn start_app_main() -> Result<(), eframe::Error>
     options,
     Box::new(|_cc| Box::new(TTRPGMaker::default())),
     )
-  }
+}
 

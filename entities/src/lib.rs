@@ -1,7 +1,7 @@
 use roll_dice::*;
 use narratives::*;
 use sqlite;
-
+use eframe::egui::TextBuffer;
 // Story
 #[derive(Debug)]
 #[derive(Clone)]
@@ -9,7 +9,7 @@ pub struct Story {
     pub raw_narration: String,
     pub summarized: AutoNarrative
 }
-
+//TODO define TextBuffer for every entity
 impl Story {
      pub fn new(raw_narration: TypedNarrative) -> Story {
          Story {
@@ -19,6 +19,25 @@ impl Story {
      }
 }
 
+impl TextBuffer for Story {
+    fn is_mutable(&self) -> bool {
+        true
+    }
+
+    fn as_str(&self) -> &str {
+        &self.raw_narration
+    }
+
+    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
+        self.raw_narration.insert_str(char_index, text);
+        char_index + text.len()
+    }
+    fn delete_char_range(&mut self, char_range: std::ops::Range<usize>) {
+        let start = char_range.start;
+        let end = char_range.end;
+        self.raw_narration.replace_range(start..end, "");
+    }
+}
 // Attribute
 #[derive(Clone)]
 pub struct Attribute {

@@ -934,10 +934,10 @@ checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 name = "entities"
 version = "0.1.0"
 dependencies = [
+ "eframe",
  "narratives",
  "roll_dice",
  "sqlite",
- "uuid",
 ]
 
 [[package]]
@@ -2556,12 +2556,6 @@ dependencies = [
  "idna",
  "percent-encoding",
 ]
-
-[[package]]
-name = "uuid"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 
 [[package]]
 name = "vec_map"
