@@ -340,34 +340,24 @@ impl eframe::App for TTRPGMaker {
             egui::SidePanel::right("ViewEditPanel")
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
+                    if ui.button("Save Changes").clicked() {
+                        println!("{}",self.selected_el);
+                    }
                     for (key, value) in self.loaded_ttrpg.iter_mut() {
                         let title = format!("{} Stories", key);
-                        ui.collapsing(title, |ui| {
-                            if self.selected_el == *key && self.view_edit.get() {
-                                for story in value.stories.iter_mut() {
+                        if self.selected_el == *key {
+                            let story_len = &value.stories.len();
+                            for story in value.stories.iter_mut() {
+                                if self.view_edit.get() &&  story_len > &0 {
+                                    ui.label(&story.summarized.summary.get(&0).unwrap().text);
                                     ui.strong(&story.raw_narration);
                                 }
                             }
-                            else if value.stories.len() > 0 && self.selected_el == *key{
-                                for story in value.stories.iter_mut() {
-                                    ui.text_edit_multiline(story);
-                                }
-                            }
-                            else if self.selected_el == *key {
-                                ui.text_edit_multiline(&mut self.new_text);
-                                if ui.button("Save").clicked() {
-
-                                    let db_path = format!("saves/{}", &self.selected.as_deref().unwrap());
-                                    let new_story = Story::new(narratives::TypedNarrative { text: self.new_text.clone()});
-
-                                    new_story.save(db_path.as_str(), value.id).unwrap();
-                                    self.selected_el = "".to_string();
-                                    //FIXME story should only be saved once this loops for infitiy.
-                                    //not good at all
+                        }
+                                   //let db_path = format!("saves/{}", &self.selected.as_deref().unwrap());
+                                    //let new_story = Story::new(narratives::TypedNarrative { text: self.new_text.clone()});
+                                    //new_story.save(db_path.as_str(), value.id).unwrap();
                                     //value.stories.push(new_story)
-                                }
-                            }
-                        });
                     }
             });
         }
