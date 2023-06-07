@@ -1,6 +1,7 @@
 use eframe::egui;
 use eframe::egui::TextBuffer;
-use entities::{Story, SaveLoad};
+use entities::{Story, SaveLoad, Attribute, Skill, Counter, Table};
+use narratives::TypedNarrative;
 use std::env;
 use store_rpg::*;
 use roll_dice::{Critical, Outcome, Roll};
@@ -20,7 +21,12 @@ pub struct TTRPGMaker {
     selected: Option<String>,
     elements: HashMap<String, Cell<bool>>,
     loaded_ttrpg: HashMap<String, Returned_TTRPG>,
-    new_text: String
+    new_text: String,
+    selected_stories: Vec<Story>,
+    selected_attributes: Vec<Attribute>,
+    selected_skills: Vec<Skill>,
+    selected_counters: Vec<Counter>,
+    selected_tables: Vec<Table>
 }
 
 impl Default for TTRPGMaker
@@ -49,6 +55,11 @@ impl Default for TTRPGMaker
         let elements = HashMap::new();
         let loaded_ttrpg = HashMap::new();
         let new_text = "".to_string();
+        let selected_stories = Vec::new();
+        let selected_attributes = Vec::new();
+        let selected_skills = Vec::new();
+        let selected_counters = Vec::new();
+        let selected_tables = Vec::new();
         
         Self
         {
@@ -63,7 +74,12 @@ impl Default for TTRPGMaker
             selected_el,
             elements,
             loaded_ttrpg,
-            new_text
+            new_text,
+            selected_stories,
+            selected_attributes,
+            selected_skills,
+            selected_counters,
+            selected_tables
         }
     }
 }
@@ -340,26 +356,17 @@ impl eframe::App for TTRPGMaker {
             egui::SidePanel::right("ViewEditPanel")
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
-                    if ui.button("Save Changes").clicked() {
-                        println!("{}",self.selected_el);
-                    }
-                    for (key, value) in self.loaded_ttrpg.iter_mut() {
-                        let title = format!("{} Stories", key);
-                        if self.selected_el == *key {
-                            let story_len = &value.stories.len();
-                            for story in value.stories.iter_mut() {
-                                if self.view_edit.get() &&  story_len > &0 {
-                                    ui.label(&story.summarized.summary.get(&0).unwrap().text);
-                                    ui.strong(&story.raw_narration);
-                                }
-                            }
-                        }
-                                   //let db_path = format!("saves/{}", &self.selected.as_deref().unwrap());
-                                    //let new_story = Story::new(narratives::TypedNarrative { text: self.new_text.clone()});
-                                    //new_story.save(db_path.as_str(), value.id).unwrap();
-                                    //value.stories.push(new_story)
-                    }
-            });
+                    if Some(&self.selected_el).is_some() {
+                        //TODO set the global vectors of what is selected to be loaded into the ui
+                        let selected_ttrpg = self.loaded_ttrpg.get(&self.selected_el).unwrap();
+                        let story_bool = &selected_ttrpg.stories.len() > &0;
+                        let attributes_bool = &selected_ttrpg.attributes.len() > &0;
+                        let skills_bool = &selected_ttrpg.skills.len() > &0;
+                        let counters_bool = &selected_ttrpg.counters.len() > &0;
+                        let tables_bool = &selected_ttrpg.tables.len() > &0;
+                         
+                    }  
+                });
         }
 
         if self.selected.is_some()
