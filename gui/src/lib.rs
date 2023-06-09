@@ -1,6 +1,6 @@
 use eframe::egui;
 use eframe::egui::TextBuffer;
-use entities::{Story, SaveLoad, Attribute, Skill, Counter, Table};
+use entities::{Story, Attribute, Skill, Counter, Table, ElementsEnum, SaveLoad};
 use narratives::TypedNarrative;
 use std::env;
 use store_rpg::*;
@@ -9,11 +9,12 @@ use std::collections::HashMap;
 use sqlite;
 use std::cell::Cell;
 
+
 pub struct TTRPGMaker {
     load_database: Cell<bool>,
     load_elements: Cell<bool>,
     view_edit: Cell<bool>,
-    selected_el: String,
+    selected_el: (String, u32),
     create_database: String,
     create_ttrpg: String,
     conn: sqlite::Connection,
@@ -22,11 +23,8 @@ pub struct TTRPGMaker {
     elements: HashMap<String, Cell<bool>>,
     loaded_ttrpg: HashMap<String, Returned_TTRPG>,
     new_text: String,
-    selected_stories: Vec<Story>,
-    selected_attributes: Vec<Attribute>,
-    selected_skills: Vec<Skill>,
-    selected_counters: Vec<Counter>,
-    selected_tables: Vec<Table>
+    selected_ttrpg: Vec<ElementsEnum>,
+    creation_panel: f32,
 }
 
 impl Default for TTRPGMaker
@@ -50,16 +48,12 @@ impl Default for TTRPGMaker
 
         // Initialize the selected database to None
         let selected = None;
-        let selected_el = "".to_string();
-        // elements hashmap for determining what should be loaded onto self.loaded_ttrpg
+        let selected_el = ("".to_string(), 0);
         let elements = HashMap::new();
         let loaded_ttrpg = HashMap::new();
         let new_text = "".to_string();
-        let selected_stories = Vec::new();
-        let selected_attributes = Vec::new();
-        let selected_skills = Vec::new();
-        let selected_counters = Vec::new();
-        let selected_tables = Vec::new();
+        let selected_ttrpg = Vec::new();
+        let creation_panel = 0.0 as f32;
         
         Self
         {
@@ -75,11 +69,8 @@ impl Default for TTRPGMaker
             elements,
             loaded_ttrpg,
             new_text,
-            selected_stories,
-            selected_attributes,
-            selected_skills,
-            selected_counters,
-            selected_tables
+            selected_ttrpg,
+            creation_panel,
         }
     }
 }
@@ -312,7 +303,6 @@ impl eframe::App for TTRPGMaker {
                     ui.set_width(ui.available_width());
                     for (key, value) in self.loaded_ttrpg.iter_mut()
                     {
-                        value.load_entity();
                         ui.collapsing(key, |ui|
                         {
                             // Selected ttrpgs get loaded here, but only to count the number of
@@ -320,21 +310,22 @@ impl eframe::App for TTRPGMaker {
                             // essentially, but atm it is just to make it work.
                             ui.horizontal_top(|ui|
                             {
-                                let mut reload_to_view = store_rpg::Returned_TTRPG::new(value.name.clone().as_str(), true).unwrap();
                                 // reload the values
-                                reload_to_view.load_entity();
-                            
-                                // True means to view and false means to edit
+                                // True means to view and false means to edit. These self the
+                                // selected stories, attributes etc. to be accesible in the view
+                                // panel. 
                                 if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("View")).clicked()
                                 {
                                     self.view_edit.set(true);
-                                    self.selected_el = value.name.clone();
-                                }
-                            
-                                if ui.add_sized(egui::vec2(ui.available_width() / 3.0, 30.0), egui::Button::new("Edit")).clicked()
-                                {
-                                    self.view_edit.set(false);
-                                    self.selected_el = value.name.clone();
+                                    self.selected_el = (value.name.clone(), value.id.clone());
+                                    self.selected_ttrpg = value.stories.clone()
+                                        .into_iter()
+                                        .map(ElementsEnum::Story)
+                                        .collect();
+                                    self.selected_ttrpg.extend(value.attributes.clone().into_iter().map(ElementsEnum::Attribute));
+                                    self.selected_ttrpg.extend(value.skills.clone().into_iter().map(ElementsEnum::Skill));
+                                    self.selected_ttrpg.extend(value.counters.clone().into_iter().map(ElementsEnum::Counter));
+                                    self.selected_ttrpg.extend(value.tables.clone().into_iter().map(ElementsEnum::Table));
                                 }
                             });
                             let ttrpg_info = format!("Element Overview\n\nStories: {}\nAttributes: {}\nSkills: {}\nCounters:{}\nTables: {}",
@@ -350,22 +341,22 @@ impl eframe::App for TTRPGMaker {
                 });
             });
         }
+        //Is constantly checking if it needs to save a story
 
-        if self.view_edit.get() || self.view_edit.get() == false // If true or false
+        if self.view_edit.get() // If true or false
         {
-            egui::SidePanel::right("ViewEditPanel")
-                .exact_width(ctx.available_rect().width())
+            egui::TopBottomPanel::top("Creation Panel")
+                .exact_height(self.creation_panel)
                 .show(ctx, |ui| {
-                    if Some(&self.selected_el).is_some() {
-                        //TODO set the global vectors of what is selected to be loaded into the ui
-                        let selected_ttrpg = self.loaded_ttrpg.get(&self.selected_el).unwrap();
-                        let story_bool = &selected_ttrpg.stories.len() > &0;
-                        let attributes_bool = &selected_ttrpg.attributes.len() > &0;
-                        let skills_bool = &selected_ttrpg.skills.len() > &0;
-                        let counters_bool = &selected_ttrpg.counters.len() > &0;
-                        let tables_bool = &selected_ttrpg.tables.len() > &0;
-                         
-                    }  
+                        ui.text_edit_multiline(&mut self.new_text);
+                        if ui.button("Save").clicked() {
+                            let db = format!("saves/{}", self.selected.as_deref().unwrap());
+                            let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
+                            self.new_text.clear();
+                            self.creation_panel = 0.0;
+                            new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save damnit!");
+                            println!("Supposed to save: {}", new_story.raw_narration);
+                        }
                 });
         }
 
@@ -375,6 +366,50 @@ impl eframe::App for TTRPGMaker {
             env::set_var("DATABASE_PATH", format!("saves/{}",selected_ref));
         }
     }
+}
+
+// Helper function for view_edit that returns the ui to generate depending on conditions provided
+// by the bool check
+fn generate_view_edit(ui: &mut egui::Ui, view: bool, selected_enum_vector: &mut Vec<ElementsEnum>) {
+    let mut uis: Vec<egui::Ui> = Vec::new();
+    
+    for elem in selected_enum_vector {
+        match elem {
+            ElementsEnum::Story(s) => {
+                let story_summary = if s.summarized.summary.len() > 0 {
+                    s.summarized
+                        .summary
+                        .get(&0)
+                        .unwrap()
+                        .clone()
+                        .text
+                    }
+                    else {
+                        panic!("This should not fire!")
+                    };
+                let story_raw = s.raw_narration.clone();
+                let mut story_el_ui = ui.child_ui( ui.available_rect_before_wrap(),
+                    egui::Layout::left_to_right(egui::Align::Center)
+                );
+                if view {
+                    story_el_ui.collapsing(story_summary, |ui| {
+                        ui.strong(story_raw);
+                    }); 
+                }
+                else {
+                    story_el_ui.collapsing("Edit mode", |ui| {
+                        ui.text_edit_multiline(&mut s.raw_narration);
+                    });
+                }
+                uis.push(story_el_ui);
+            },
+            ElementsEnum::Attribute(a) => {},
+            ElementsEnum::Skill(s) => {},
+            ElementsEnum::Counter(c) => {},
+            ElementsEnum::Table(t) => {}
+        }
+    }
+    
 }
 
 pub fn start_app_main() -> Result<(), eframe::Error>

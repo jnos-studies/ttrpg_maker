@@ -471,3 +471,11 @@ impl SaveLoad for Table {
         Ok(())
     }
 }
+
+pub enum ElementsEnum {
+    Story(Story),
+    Attribute(Attribute),
+    Skill(Skill),
+    Counter(Counter),
+    Table(Table)
+}
