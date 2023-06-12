@@ -38,7 +38,7 @@ impl TextBuffer for Story {
     }
 }
 // Attribute
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Attribute {
     pub description: TypedNarrative,
     pub attribute: Outcome,
@@ -59,7 +59,7 @@ impl Attribute {
 
 
 // Skill
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Skill {
     pub description: TypedNarrative,
     pub roll: Roll
@@ -75,7 +75,7 @@ impl Skill {
 }
 
 // Counter
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Counter {
     pub description: TypedNarrative,
     pub number: u32
@@ -94,7 +94,7 @@ impl Counter {
     }
 }
 // Table
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Table {
     pub description: TypedNarrative,
     pub table: TabledNarratives
@@ -471,6 +471,7 @@ impl SaveLoad for Table {
     }
 }
 
+#[derive(Debug)]
 pub enum ElementsEnum {
     Story(Story),
     Attribute(Attribute),

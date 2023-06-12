@@ -3,7 +3,7 @@ use roll_dice::*;
 use pithy;
 
 //literally raw, original text
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TypedNarrative {
     pub text: String,
 }
@@ -16,14 +16,13 @@ impl TypedNarrative {
     }
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AutoNarrative {
     pub summary: HashMap<usize, pithy::Sentence, RandomState>,
 }
 impl AutoNarrative {
     pub fn new(text: TypedNarrative) -> AutoNarrative {
-        let summary = AutoNarrative::summarize(text, 100, 300);
+        let summary = AutoNarrative::summarize(text, 3, 100);
         
         AutoNarrative {
             summary
@@ -32,12 +31,14 @@ impl AutoNarrative {
     //Will summarize and return all of the summarized sentences to which bias can be implemented
     fn summarize(text: TypedNarrative, min: usize, max: usize) -> HashMap<usize, pithy::Sentence> {
         let mut summary = pithy::Summariser::new();
+
         summary.add_raw_text("".to_string(), text.text.clone(), ",", min, max, false);
+        summary.score_sentences_by_word_frequency(word_frequency(text.text.as_str()),3.0, 10.0);
         summary.sentences
         
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TabledNarratives {
     pub table: HashMap<(u32, u32), String>
 }
@@ -68,5 +69,19 @@ impl TabledNarratives {
         }
         result
     }
+}
+
+
+fn word_frequency(text: &str) -> HashMap<String, f32> {
+    let mut frequency = HashMap::new();
+    let words = text.split_whitespace();
+    let total_words = words.clone().count() as f32;
+    for word in words {
+        *frequency.entry(word.to_string()).or_insert(0f32) += 1f32;
+    }
+    for value in frequency.values_mut() {
+        *value /= total_words;
+    }
+    frequency
 }
 
