@@ -255,14 +255,17 @@ impl eframe::App for TTRPGMaker {
                                         if value.get() == true
                                         {
                                             value.set(false);
-                                            let _removed_val = self.loaded_ttrpg.remove(key.clone().as_str()); // Gets dropped
+                                            let _removed_val = self.loaded_ttrpg.remove(key.clone().as_str());
+                                            //TODO add the values from this removed val to a log
+                                            //system that has yet to be created.
                                         }
                                         else
                                         {
                                             value.set(true);
-                                            self.loaded_ttrpg.insert(
-                                                key.clone(),
-                                                store_rpg::Returned_TTRPG::new(key.as_str(), true).unwrap());
+                                            let load_the_ttrpg_el = store_rpg::Returned_TTRPG::new(key.as_str(), true).unwrap().clone();
+                                            let db = format!("saves/{}",self.selected.as_deref().unwrap());
+                                            let load_the_ttrpg_el = load_the_ttrpg_el.load_elements(db.as_str()).unwrap();
+                                            self.loaded_ttrpg.insert(key.clone(), load_the_ttrpg_el);
                                         }
                                     }
                                     // Delete from selected database
@@ -350,6 +353,7 @@ impl eframe::App for TTRPGMaker {
                 .show(ctx, |ui| {
                         ui.text_edit_multiline(&mut self.new_text);
                         if ui.button("Save").clicked() {
+
                             let db = format!("saves/{}", self.selected.as_deref().unwrap());
                             let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
                             self.new_text.clear();

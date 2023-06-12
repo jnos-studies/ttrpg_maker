@@ -41,8 +41,8 @@ impl Returned_TTRPG
         connection.iterate("SELECT * FROM ttrpgs", |row| {
             // simple debug println!("{:?}", row[2].1.unwrap());
             if row[2].1.unwrap() == name {
-                ttrpg.name = name.to_string();
-                ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap();
+                ttrpg.name = name.to_string().clone();
+                ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap().clone();
                 exists = true;
             }
             true
@@ -52,7 +52,7 @@ impl Returned_TTRPG
         {
             connection.execute(format!("INSERT INTO ttrpgs (name) VALUES ('{}')", name)).unwrap();
             ttrpg.name = String::from(name);
-            return Some(ttrpg)
+            return Some(ttrpg.clone())
         }
         if loading == true
         {
@@ -60,20 +60,19 @@ impl Returned_TTRPG
         }
         None
     }
-    pub fn load_elements(mut self, database_path: &str) {
+    pub fn load_elements(mut self, database_path: &str) -> Option<Returned_TTRPG>{
         let connection = sqlite::Connection::open(database_path).unwrap();
-        let mut stories = Vec::new();
         connection.iterate(format!("SELECT * FROM stories WHERE ttrpg_id = {}", self.id), |row| {
             for (column, value) in row.iter() {
                 if column.contains("text_data") {
-
                     let story = Story::new(TypedNarrative::new(value.unwrap().to_string().clone()));
-                    stories.push(story);
+                    println!("{:#?}", story);
+                    self.stories.push(story);
                 }
             }
             true
         }).unwrap();
-        self.stories = stories;
+    Some(self)
     }
 }
 

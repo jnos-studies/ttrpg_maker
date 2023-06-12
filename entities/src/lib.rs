@@ -3,8 +3,7 @@ use narratives::*;
 use sqlite;
 use eframe::egui::TextBuffer;
 // Story
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Story {
     pub raw_narration: String,
     pub summarized: AutoNarrative
