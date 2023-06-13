@@ -471,7 +471,7 @@ impl SaveLoad for Table {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ElementsEnum {
     Story(Story),
     Attribute(Attribute),

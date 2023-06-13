@@ -23,8 +23,7 @@ pub struct TTRPGMaker {
     elements: HashMap<String, Cell<bool>>,
     loaded_ttrpg: HashMap<String, Returned_TTRPG>,
     new_text: String,
-    selected_ttrpg: Vec<ElementsEnum>,
-    creation_panel: f32,
+    selected_ttrpg: Vec<(u32, ElementsEnum)>,
 }
 
 impl Default for TTRPGMaker
@@ -53,7 +52,6 @@ impl Default for TTRPGMaker
         let loaded_ttrpg = HashMap::new();
         let new_text = "".to_string();
         let selected_ttrpg = Vec::new();
-        let creation_panel = 0.0 as f32;
         
         Self
         {
@@ -70,7 +68,6 @@ impl Default for TTRPGMaker
             loaded_ttrpg,
             new_text,
             selected_ttrpg,
-            creation_panel,
         }
     }
 }
@@ -313,18 +310,42 @@ impl eframe::App for TTRPGMaker {
                             {
                                 let button = egui::Button::new("View");
                                 let size_button = egui::vec2(ui.available_width() / 3.0, 30.0);
-                                if ui.add_sized(size_button, button).clicked()
-                                {
+                                if ui.add_sized(size_button, button).clicked() {
+                                    // Map each selected element to its values loaded from the
+                                    // database el.0 is the id and el.1 is the value itself.
                                     self.view_edit.set(true);
                                     self.selected_el = (value.name.clone(), value.id.clone());
                                     self.selected_ttrpg = value.stories.clone()
                                         .into_iter()
-                                        .map(ElementsEnum::Story)
+                                        .map(|el|(el.0, ElementsEnum::Story(el.1)))
                                         .collect();
-                                    self.selected_ttrpg.extend(value.attributes.clone().into_iter().map(ElementsEnum::Attribute));
-                                    self.selected_ttrpg.extend(value.skills.clone().into_iter().map(ElementsEnum::Skill));
-                                    self.selected_ttrpg.extend(value.counters.clone().into_iter().map(ElementsEnum::Counter));
-                                    self.selected_ttrpg.extend(value.tables.clone().into_iter().map(ElementsEnum::Table));
+                                    self.selected_ttrpg.extend(
+                                        value.attributes
+                                        .clone()
+                                        .into_iter()
+                                        .map(|el| (el.0, ElementsEnum::Attribute(el.1)))
+                                    );
+                                    self.selected_ttrpg.extend(
+                                        value.skills
+                                        .clone()
+                                        .into_iter()
+                                        .map(|el| (el.0, ElementsEnum::Skill(el.1)))
+                                    );
+                                    self.selected_ttrpg.extend(
+                                        value.counters
+                                        .clone()
+                                        .into_iter()
+                                        .map(|el| (el.0, ElementsEnum::Counter(el.1)))
+                                    );
+                                    self.selected_ttrpg.extend(
+                                        value.tables
+                                        .clone()
+                                        .into_iter()
+                                        .map(|el| (el.0, ElementsEnum::Table(el.1)))
+                                    );
+                                }
+                                if ui.add_sized(size_button, egui::Button::new("Edit")).clicked() {
+                                    self.view_edit.set(false);
                                 }
                             });
                             let ttrpg_info = format!("Element Overview\n\nStories: {}\nAttributes: {}\nSkills: {}\nCounters:{}\nTables: {}",
@@ -345,14 +366,13 @@ impl eframe::App for TTRPGMaker {
         if self.view_edit.get() // If true or false
         {
             egui::TopBottomPanel::top("Creation Panel")
-                .exact_height(self.creation_panel)
                 .show(ctx, |ui| {
+                    ui.collapsing("Creation Panel", |ui| {
                         ui.text_edit_multiline(&mut self.new_text);
                         if ui.button("Save").clicked() {
                             let db = format!("saves/{}", self.selected.as_deref().unwrap());
                             let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
                             self.new_text.clear();
-                            self.creation_panel = 0.0;
                             new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save damnit!");
                             for key in self.loaded_ttrpg.clone().into_iter() {
                                 if key.0 == self.selected_el.0 {
@@ -363,16 +383,55 @@ impl eframe::App for TTRPGMaker {
                                     self.selected_ttrpg.clear();
                                 }
                             }
-                            
-
                         }
+                    });
                 });
             egui::SidePanel::right("View_Edit")
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
                     ui.label("Your existing stories");
-                     generate_view_edit(ui, self.view_edit.get(), &mut self.selected_ttrpg);
+                     generate_view_edit(
+                         ui, 
+                         &mut self.view_edit.get(),
+                         &mut self.selected_ttrpg, 
+                         format!("saves/{}", self.selected.as_deref().unwrap()).as_str(),
+                         );
                 });
+        }
+        else if self.view_edit.get() == false && self.selected.is_some() {
+            egui::TopBottomPanel::top("Creation Panel")
+                .show(ctx, |ui| {
+                    ui.collapsing("Creation Panel", |ui| {
+                        ui.text_edit_multiline(&mut self.new_text);
+                        if ui.button("Save").clicked() {
+                            let db = format!("saves/{}", self.selected.as_deref().unwrap());
+                            let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
+                            self.new_text.clear();
+                            new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save damnit!");
+                            for key in self.loaded_ttrpg.clone().into_iter() {
+                                if key.0 == self.selected_el.0 {
+                                    let key_string = key.0.as_str();
+                                    let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
+                                    self.loaded_ttrpg.remove(key_string);
+                                    self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
+                                    self.selected_ttrpg.clear();
+                                }
+                            }
+                        }
+                    });
+                });
+            egui::SidePanel::right("View_Edit")
+                .exact_width(ctx.available_rect().width())
+                .show(ctx, |ui| {
+                    ui.label("Your existing stories");
+                     generate_view_edit(
+                         ui, 
+                         &mut self.view_edit.get(),
+                         &mut self.selected_ttrpg, 
+                         format!("saves/{}", self.selected.as_deref().unwrap()).as_str(),
+                         );
+                });
+
         }
 
         if self.selected.is_some()
@@ -392,40 +451,47 @@ fn reload_ttrpg (key: &str, db_selected_path: &Option<String>) -> Returned_TTRPG
 }
 // Helper function for view_edit that returns the ui to generate depending on conditions provided
 // by the bool check
-fn generate_view_edit(ui: &mut egui::Ui, view: bool, selected_enum_vector: &mut Vec<ElementsEnum>) { 
+fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: &mut Vec<(u32, ElementsEnum)>, db_path: &str) { 
     for elem in selected_enum_vector {
-        match elem {
-            ElementsEnum::Story(s) => {
+        match (elem.0, elem.1.clone()) {
+            (id ,ElementsEnum::Story(mut s)) => {
                 let story_summary = if s.summarized.summary.len() > 0 {
                     s.summarized
                         .summary
                         .get(&0)
                         .unwrap()
                         .clone()
-                        .text[0..30]
+                        .text[0..10]
                         .to_string()
                     }
                     else {
                         "Text provided was too short!".to_string()
                     };
-                let story_raw = s.raw_narration.clone();
-                if view {
-                    ui.push_id(story_summary.clone(), |ui| {
-                        ui.collapsing(story_summary.clone(), |ui| {
-                            ui.strong(story_raw)
+                ui.push_id(story_summary.clone(), |ui| {
+                    let view_text = egui::RichText::new(&story_summary).size(14.0);
+                    let view_text_raw = egui::RichText::new(&s.raw_narration.clone()).size(14.0);
+                    if *view == true {
+                        let collapsing_ui = egui::CollapsingHeader::new(view_text);
+                        collapsing_ui.show(ui, |ui| {
+                            ui.strong(view_text_raw);
                         });
-                    });
-                }
-                else {
-                    ui.push_id("Edit mode", |ui| {
+                    }
+                    else {
+                        ui.strong(view_text);
                         ui.text_edit_multiline(&mut s.raw_narration);
-                    });
-                }
+                        ui.horizontal(|ui| {
+                            if ui.button("Save and Update").clicked() {
+                                let update_entity = Story::new(TypedNarrative::new(s.raw_narration.clone()));
+                                s.update(db_path, id.clone(), update_entity).unwrap();
+                            }
+                        });
+                    }
+                });
             },
-            ElementsEnum::Attribute(a) => {},
-            ElementsEnum::Skill(s) => {},
-            ElementsEnum::Counter(c) => {},
-            ElementsEnum::Table(t) => {}
+            (id, ElementsEnum::Attribute(mut a)) => {},
+            (id, ElementsEnum::Skill(mut s)) => {},
+            (id, ElementsEnum::Counter(mut c)) => {},
+            (id, ElementsEnum::Table(mut t)) => {}
         }
     }
 }

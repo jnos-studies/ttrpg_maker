@@ -9,11 +9,11 @@ pub struct Returned_TTRPG
 {
     pub name: String,
     pub id: u32,
-    pub stories: Vec<entities::Story>,
-    pub attributes: Vec<entities::Attribute>,
-    pub skills: Vec<entities::Skill>,
-    pub counters: Vec<entities::Counter>,
-    pub tables: Vec<entities::Table>
+    pub stories: Vec<(u32, entities::Story)>,
+    pub attributes: Vec<(u32, entities::Attribute)>,
+    pub skills: Vec<(u32, entities::Skill)>,
+    pub counters: Vec<(u32, entities::Counter)>,
+    pub tables: Vec<(u32, entities::Table)>
 }
 
 impl Returned_TTRPG
@@ -38,8 +38,8 @@ impl Returned_TTRPG
             counters: Vec::new(),
             tables: Vec::new()
         };
+        // Gets database names
         connection.iterate("SELECT * FROM ttrpgs", |row| {
-            // simple debug println!("{:?}", row[2].1.unwrap());
             if row[2].1.unwrap() == name {
                 ttrpg.name = name.to_string().clone();
                 ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap().clone();
@@ -63,13 +63,11 @@ impl Returned_TTRPG
     pub fn load_elements(mut self, database_path: &str) -> Option<Returned_TTRPG>{
         let connection = sqlite::Connection::open(database_path).unwrap();
         connection.iterate(format!("SELECT * FROM stories WHERE ttrpg_id = {}", self.id), |row| {
-            for (column, value) in row.iter() {
-                if column.contains("text_data") {
-                    let story = Story::new(TypedNarrative::new(value.unwrap().to_string().clone()));
-                    println!("{:#?}", story);
-                    self.stories.push(story);
-                }
-            }
+            self.stories.push(
+                (
+                    row[0].1.unwrap().parse().unwrap(),
+                    Story::new(TypedNarrative::new(row[2].1.unwrap().to_string()))
+                ));
             true
         }).unwrap();
     Some(self)
@@ -85,7 +83,7 @@ pub fn database_setup(database_path: &str)
             name TEXT NOT NULL);
 
         CREATE TABLE stories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            story_id INTEGER PRIMARY KEY AUTOINCREMENT,
             ttrpg_id INTEGER NOT NULL,
             text_data TEXT NOT NULL,
             FOREIGN KEY (ttrpg_id) REFERENCES ttrpgs(id)
@@ -138,7 +136,11 @@ pub fn database_setup(database_path: &str)
         ); 
     ";
 
-    connection.execute(query).unwrap();
+    match connection.execute(query) {
+        Ok(val) => val,
+        //FIXME or log me. This is not a very serious error
+        Err(e) => println!("{:#?}", e)
+    }
 }
 
 pub fn get_existing_ttrpgs_from_database(database_path: &str) -> Vec<String>
