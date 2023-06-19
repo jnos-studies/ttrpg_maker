@@ -1,4 +1,6 @@
 use std::collections::{HashMap, hash_map::RandomState};
+use serde::{Deserialize, Serialize};
+use serde_json;
 use roll_dice::*;
 use pithy;
 
@@ -38,7 +40,8 @@ impl AutoNarrative {
         
     }
 }
-#[derive(Clone, Debug)]
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TabledNarratives {
     pub table: HashMap<(u32, u32), String>
 }
@@ -54,6 +57,14 @@ impl TabledNarratives {
         TabledNarratives {
             table: hashmap
         }
+    }
+    // Serialize the table values into json to be easily stored in a database
+    pub fn values_to_json(&self) -> String {
+        serde_json::to_string(&self.table).unwrap()
+    }
+    // Use to Deserialize table values from it's Serialized json value
+    pub fn values_from_json(&self, json: String) ->  HashMap<(u32, u32), String> {
+        serde_json::from_str(&json).unwrap()
     }
 
     pub fn roll_to_text(&self, roll: &Outcome) -> String {

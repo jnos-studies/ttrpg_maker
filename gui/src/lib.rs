@@ -23,6 +23,7 @@ pub struct TTRPGMaker {
     elements: HashMap<String, Cell<bool>>,
     loaded_ttrpg: HashMap<String, Returned_TTRPG>,
     new_text: String,
+    edit_text: String,
     selected_ttrpg: Vec<(u32, ElementsEnum)>,
 }
 
@@ -51,6 +52,7 @@ impl Default for TTRPGMaker
         let elements = HashMap::new();
         let loaded_ttrpg = HashMap::new();
         let new_text = "".to_string();
+        let edit_text = "".to_string();
         let selected_ttrpg = Vec::new();
         
         Self
@@ -67,6 +69,7 @@ impl Default for TTRPGMaker
             elements,
             loaded_ttrpg,
             new_text,
+            edit_text,
             selected_ttrpg,
         }
     }
@@ -374,6 +377,7 @@ impl eframe::App for TTRPGMaker {
                             let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
                             self.new_text.clear();
                             new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save damnit!");
+                            println!("ID raw save{}", self.selected_el.1);
                             for key in self.loaded_ttrpg.clone().into_iter() {
                                 if key.0 == self.selected_el.0 {
                                     let key_string = key.0.as_str();
@@ -394,6 +398,7 @@ impl eframe::App for TTRPGMaker {
                          ui, 
                          &mut self.view_edit.get(),
                          &mut self.selected_ttrpg, 
+                         &mut self.edit_text,
                          format!("saves/{}", self.selected.as_deref().unwrap()).as_str(),
                          );
                 });
@@ -428,6 +433,7 @@ impl eframe::App for TTRPGMaker {
                          ui, 
                          &mut self.view_edit.get(),
                          &mut self.selected_ttrpg, 
+                         &mut self.edit_text,
                          format!("saves/{}", self.selected.as_deref().unwrap()).as_str(),
                          );
                 });
@@ -451,7 +457,7 @@ fn reload_ttrpg (key: &str, db_selected_path: &Option<String>) -> Returned_TTRPG
 }
 // Helper function for view_edit that returns the ui to generate depending on conditions provided
 // by the bool check
-fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: &mut Vec<(u32, ElementsEnum)>, db_path: &str) { 
+fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: &mut Vec<(u32, ElementsEnum)>, edit_text: &mut String, db_path: &str) { 
     for elem in selected_enum_vector {
         match (elem.0, elem.1.clone()) {
             (id ,ElementsEnum::Story(mut s)) => {
@@ -478,7 +484,12 @@ fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: 
                     }
                     else {
                         ui.strong(view_text);
-                        ui.text_edit_multiline(&mut s.raw_narration);
+                        if ui.text_edit_multiline(edit_text).gained_focus() {
+                            println!("Gained focus: {:?} ID: {}", s.summarized.summary.get(&0).unwrap().text, &id);
+                            *edit_text = s.raw_narration.to_string();
+                        }
+
+                        
                         ui.horizontal(|ui| {
                             if ui.button("Save and Update").clicked() {
                                 let update_entity = Story::new(TypedNarrative::new(s.raw_narration.clone()));

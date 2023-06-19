@@ -129,9 +129,7 @@ pub fn database_setup(database_path: &str)
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ttrpg_id INTEGER NOT NULL,
             description TEXT,
-            lower_range INTEGER NOT NULL,
-            higher_range INTEGER NOT NULL,
-            text_value TEXT NOT NULL,
+            values_json TEXT NOT NULL,
             FOREIGN KEY (ttrpg_id) REFERENCES ttrpg(id)
         ); 
     ";
@@ -161,16 +159,12 @@ pub fn delete_ttrpg(database_path: &str, ttrpg_id: u32, ttrpg_name: &str) -> Str
         "
         DELETE FROM ttrpgs WHERE id = {};
         DELETE FROM stories WHERE ttrpg_id = {};
-        DELETE FROM attribute_outcomes WHERE attribute_id = (SELECT id FROM attributes WHERE id = {});
         DELETE FROM attributes WHERE ttrpg_id = {};
-        DELETE FROM rolls WHERE ttrpg_id = {};
+        DELETE FROM all_rolls WHERE ttrpg_id = {};
         DELETE FROM skills WHERE ttrpg_id = {};
         DELETE FROM counters WHERE ttrpg_id = {};
-        DELETE FROM table_values WHERE table_id = (SELECT id FROM tables WHERE ttrpg_id = {});
         DELETE FROM tables WHERE ttrpg_id = {}; 
         ",
-        ttrpg_id,
-        ttrpg_id,
         ttrpg_id,
         ttrpg_id,
         ttrpg_id,

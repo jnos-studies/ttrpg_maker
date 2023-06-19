@@ -142,18 +142,17 @@ impl SaveLoad for Story {
     {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
-            "UPDATE stories SET text_data = '{}' WHERE id = {};",
+            "UPDATE stories SET text_data = '{}' WHERE story_id = {};",
             update_entity.raw_narration,
             entity_id
         );
-
         connection.execute(query).unwrap();
         Ok(())
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
         let connection = sqlite::Connection::open(database_path).unwrap();
-        let query = format!("DELETE FROM stories WHERE id = {};", entity_id);
+        let query = format!("DELETE FROM stories WHERE story_id = {};", entity_id);
         connection.execute(query).unwrap();
         Ok(())
     }
@@ -168,35 +167,18 @@ impl SaveLoad for Attribute {
             "
             INSERT INTO attributes (
                 ttrpg_id,
-                description
+                description,
+                roll_description,
+                base_result
             )
-            VALUES ({}, '{}')
+            VALUES ({}, '{}', '{}', '{}')
             ",
             campaign_id,
-            self.description.text
-        );
-        connection.execute(query_attribute).unwrap();
-
-        let mut attribute_id = 0;
-        connection.iterate("SELECT * FROM attributes", |_| {
-            attribute_id += 1;
-            true
-        }).unwrap();
-
-        let query_attribute_outcome = format!(
-            "
-                INSERT INTO attribute_outcomes (
-                    attribute_id,
-                    roll_description,
-                    base_result
-                )
-                VALUES ({}, '{}', {})
-            ",
-            attribute_id,
+            self.description.text,
             self.attribute.roll_description,
             self.attribute.base_result
         );
-        connection.execute(query_attribute_outcome).unwrap();
+        connection.execute(query_attribute).unwrap();
         Ok(())
     }
 
@@ -206,12 +188,11 @@ impl SaveLoad for Attribute {
         // Remove and add a new attribute to replace the old one
         let query = format!(
             "
-            UPDATE attribute_outcomes SET roll_description = '{}', base_result = {} WHERE attribute_id = {};
-            UPDATE attributes SET description WHERE id = {};
+            UPDATE attributes SET description = '{}', roll_description = '{}, base_result = {} WHERE id = {};
             ",
+            update_entity.description.text,
             update_entity.attribute.roll_description,
             update_entity.attribute.base_result,
-            entity_id,
             entity_id
         );
 
@@ -224,10 +205,8 @@ impl SaveLoad for Attribute {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
             "
-            DELETE FROM attribute_outcomes WHERE attribute_id = {};
             DELETE FROM attributes WHERE id = {};
             ",
-            entity_id,
             entity_id
         );
         connection.execute(query).unwrap();
@@ -242,43 +221,21 @@ impl SaveLoad for Skill {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
         let query_roll = format!(
             "
-                INSERT INTO rolls (
+                INSERT INTO skills (
                     ttrpg_id,
-                    blank_roll,
+                    description,
                     dice_label,
                     dice,
                     amount
-                ) VALUES ({}, {}, '{}', {}, {})
+                ) VALUES ({}, '{}', '{}', {}, {})
             ",
             campaign_id,
-            0,
+            self.description.text,
             self.roll.dice_label,
             self.roll.dice,
             self.roll.amount
         );
         connection.execute(query_roll).unwrap();
-        
-        let mut roll_id = 0;
-        connection.iterate("SELECT *  FROM skills", |_| {
-            roll_id += 1;
-            true
-        }).unwrap();
-
-        let query_skill = format!(
-            "
-            INSERT INTO skills (
-                ttrpg_id,
-                roll_id,
-                description
-            )
-            VALUES ({}, {}, '{}')
-            ",
-            campaign_id,
-            roll_id,
-            self.description.text
-        );
-        connection.execute(query_skill).unwrap();
-
         Ok(())
     }
     fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>
@@ -286,33 +243,25 @@ impl SaveLoad for Skill {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
             "
-            UPDATE skills SET description = '{}' WHERE roll_id = {};
-            UPDATE rolls SET dice_label = '{}', dice = {}, amount = {} WHERE skill_id = {}
+            UPDATE skills SET description = '{}', dice_label = '{}', dice = {}, amount = {} WHERE id = {}
             ",
             update_entity.description.text,
-            entity_id,
             update_entity.roll.dice_label,
             update_entity.roll.dice,
             update_entity.roll.amount,
             entity_id
         );
-
         connection.execute(query).unwrap();
         Ok(())
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
         let connection = sqlite::Connection::open(database_path).unwrap();
-        // skills and there respective rolls share a mutal id, so skills ids are dependant on rolls
-        // which has autoincrement for the skill_id column. This does not mean that every roll has
-        // to have a corresponding skill
         let query = format!(
             "
-            DELETE FROM rolls WHERE skill_id = {};
-            DELETE FROM skills WHERE roll_id = {};
+            DELETE FROM skills WHERE id = {};
             ",
             entity_id,
-            entity_id
         );
         connection.execute(query).unwrap();
         Ok(())
@@ -346,15 +295,12 @@ impl SaveLoad for Counter {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
             "
-            UPDATE counters SET description = '{}' WHERE id = {};
-            UPDATE counters SET number = {} WHERE id = {};
+            UPDATE counters SET description = '{}', number = {} WHERE id = {};
             ",
             update_entity.description.text,
-            entity_id,
             update_entity.number,
             entity_id
         );
-
         connection.execute(query).unwrap();
         Ok(())
     }
@@ -377,82 +323,33 @@ impl SaveLoad for Table {
     fn save(&self, database_path: &str, campaign_id: u32) -> Result<(), String>
     {
         let connection = sqlite::Connection::open(database_path).unwrap(); 
-        let query_table = format!(
+        let query = format!(
             "
             INSERT INTO tables (
                 ttrpg_id,
-                description
-            )
-            VALUES ({}, '{}')
+                description,
+                values_json
+            ) VALUES({}, '{}', '{}')
             ",
             campaign_id,
-            self.description.text
+            self.description.text,
+            self.table.values_to_json()
         );
-        connection.execute(query_table).unwrap();
-
-        let mut table_id = 0;
-        connection.iterate("SELECT * FROM tables", |_| {
-            table_id += 1;
-            true
-        }).unwrap();
-        
-        for (key, value) in self.table.table.iter()
-        {
-            let query_table_values = format!(
-                "
-                    INSERT INTO table_values (
-                        table_id,
-                        lower_range,
-                        higher_range,
-                        text_value
-                    )
-                    VALUES ({}, {}, {}, '{}')
-                ",
-                table_id,
-                key.0, // lower_range
-                key.1, // higher_range
-                value  //text_value
-            );
-            connection.execute(query_table_values).unwrap();
-        }
-        
+        connection.execute(query).unwrap();
         Ok(())
     }
-
     fn update(&self, database_path: &str, entity_id: u32, update_entity: Self::Entity) -> Result<(), String>
     {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query_table = format!(
             "
-            UPDATE tables SET description = '{}' WHERE id = {};
-            DELETE FROM table_values WHERE table_id = {};
+            UPDATE tables SET description = '{}', values_json = '{}' WHERE id = {};
             ",
             update_entity.description.text,
-            entity_id,
+            update_entity.table.values_to_json(),
             entity_id
         );
         connection.execute(query_table).unwrap();
-        // re - add all of the updated table values
-        for (key, value) in update_entity.table.table.iter()
-        {
-              let query_table_values = format!(                                                          
-                  "
-                      INSERT INTO table_values (                                                         
-                          table_id,                                                                      
-                          lower_range,                                                                   
-                          higher_range,
-                          text_value
-                      )
-                      VALUES ({}, {}, {}, '{}')                                                          
-                  ",
-                  entity_id,
-                  key.0, // lower_range
-                  key.1, // higher_range                                                                 
-                  value  //text_value                                                                    
-              );
-              connection.execute(query_table_values).unwrap();                                           
-          }
-        
         Ok(())
     }
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
@@ -460,10 +357,8 @@ impl SaveLoad for Table {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
             "
-            DELETE FROM table_values WHERE table_id = {};
             DELETE FROM tables WHERE id = {};
             ",
-            entity_id,
             entity_id
         );
         connection.execute(query).unwrap();
