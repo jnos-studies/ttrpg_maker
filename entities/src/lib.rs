@@ -142,7 +142,7 @@ impl SaveLoad for Story {
     {
         let connection = sqlite::Connection::open(database_path).unwrap();
         let query = format!(
-            "UPDATE stories SET text_data = '{}' WHERE story_id = {};",
+            "UPDATE stories SET text_data = '{}' WHERE id = {};",
             update_entity.raw_narration,
             entity_id
         );
@@ -152,7 +152,7 @@ impl SaveLoad for Story {
     fn delete(&self, database_path: &str, entity_id: u32) -> Result<(), String>
     {
         let connection = sqlite::Connection::open(database_path).unwrap();
-        let query = format!("DELETE FROM stories WHERE story_id = {};", entity_id);
+        let query = format!("DELETE FROM stories WHERE id = {};", entity_id);
         connection.execute(query).unwrap();
         Ok(())
     }
@@ -332,7 +332,7 @@ impl SaveLoad for Table {
             ) VALUES({}, '{}', '{}')
             ",
             campaign_id,
-            self.description.text,
+            escape_sql(self.description.text.as_str()),
             self.table.values_to_json()
         );
         connection.execute(query).unwrap();
@@ -373,4 +373,8 @@ pub enum ElementsEnum {
     Skill(Skill),
     Counter(Counter),
     Table(Table)
+}
+
+fn escape_sql(input: &str) -> String {
+    input.replace("'", "''")
 }

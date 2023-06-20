@@ -83,7 +83,7 @@ pub fn database_setup(database_path: &str)
             name TEXT NOT NULL);
 
         CREATE TABLE stories (
-            story_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             ttrpg_id INTEGER NOT NULL,
             text_data TEXT NOT NULL,
             FOREIGN KEY (ttrpg_id) REFERENCES ttrpgs(id)
@@ -174,7 +174,10 @@ pub fn delete_ttrpg(database_path: &str, ttrpg_id: u32, ttrpg_name: &str) -> Str
         ttrpg_id
         );
 
-        connection.execute(query).unwrap();
+    match connection.execute(query) {
+        Ok(_s) => println!("Deletion successful"),
+        Err(e) => println!("{:#?}", e)
+    }
 
         String::from(format!("TTRPG {} successfully deleted!", ttrpg_name))
 }

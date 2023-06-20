@@ -13,7 +13,7 @@ pub struct TypedNarrative {
 impl TypedNarrative {
     pub fn new(text: String) -> TypedNarrative {
         TypedNarrative {
-            text,
+            text: escape_sql(text.as_str()),
         }
     }
 }
@@ -51,7 +51,7 @@ impl TabledNarratives {
     // the range of 1..=10 print etc.
     pub fn new(table: Vec<((u32, u32), String)>) -> TabledNarratives {
         let hashmap: HashMap<(u32, u32), String> = table.iter().cloned().fold(HashMap::new(), |mut acc, (k, v)| {
-            acc.insert(k, v.to_string());
+            acc.insert(k, escape_sql(v.as_str()));
             acc
         });
         TabledNarratives {
@@ -96,3 +96,6 @@ fn word_frequency(text: &str) -> HashMap<String, f32> {
     frequency
 }
 
+fn escape_sql(input: &str) -> String {
+    input.replace("'", "''")
+}
