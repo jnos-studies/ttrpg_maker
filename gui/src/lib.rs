@@ -25,7 +25,13 @@ pub struct TTRPGMaker {
     new_text: String,
     edit_el: (u32, <Story as SaveLoad>::Entity),
     create_el: String,
+    dice_type: String,
+    dice_amount: String,
+    outcome_bonus: String,
+    difficulty_dc: String,
     selected_ttrpg: Vec<(u32, ElementsEnum)>,
+    critical: Critical,
+    rolls: Box<Vec<Outcome>>
 }
 
 impl Default for TTRPGMaker
@@ -55,7 +61,14 @@ impl Default for TTRPGMaker
         let new_text = "".to_string();
         let edit_el = (0 as u32, Story::new(TypedNarrative::new("".to_string())));
         let create_el = "Story".to_string();
+        let dice_type = "20".to_string();
+        let dice_amount = "1".to_string();
+        let outcome_bonus = "0".to_string();
+        let difficulty_dc = "0".to_string();
         let selected_ttrpg = Vec::new();
+        let critical = Critical::Twenty;
+        let rolls = Box::new(Vec::new());
+
         
         Self
         {
@@ -73,7 +86,13 @@ impl Default for TTRPGMaker
             new_text,
             edit_el,
             create_el,
+            dice_type,
+            dice_amount,
+            outcome_bonus,
+            difficulty_dc,
             selected_ttrpg,
+            critical,
+            rolls
         }
     }
 }
@@ -280,9 +299,9 @@ impl eframe::App for TTRPGMaker {
                                             &reload_ttrpg.name
                                         );
                                         self.loaded_ttrpg.remove(key);
-                                        // figure out how to reload so that the ui elements delete when
-                                        // deleted from the database
                                         element_to_delete = reload_ttrpg.name;
+                                        self.selected_ttrpg.clear();
+                                        self.selected_el.0.clear();
                                     }
                                 });
                             }
@@ -373,12 +392,62 @@ impl eframe::App for TTRPGMaker {
         {
             egui::TopBottomPanel::top("Creation Panel")
                 .show(ctx, |ui| {
-                    let creation_panel_display = if Some(self.selected_el.1).is_some() {
+                    let creation_panel_display = if self.selected_el.0.len() > 0 {
                         format!("Creation Panel (Selected: {})", &self.selected_el.0)
                     }
                     else {
-                        format!("Creation Panel (Selected: {})", "None")
+                        format!("Creation Panel (Selected: {})", "None Selected".to_string())
                     };
+                    
+                    ui.horizontal_wrapped(|ui| {
+                            ui.horizontal(|ui| {
+                                let roll_button = egui::Button::new("Roll!");
+                                if ui.add(roll_button).clicked() {
+                                    let roll = Roll::new(
+                                        match self.dice_type.parse::<u32>() {
+                                            Ok(n) => n,
+                                            Err(_) => 20
+                                        },
+                                        match self.dice_amount.parse::<u32>() {
+                                            Ok(n) => n,
+                                            Err(_) => 1
+                                        }
+                                    );
+                                    self.dice_type = roll.dice.to_string();
+                                    self.dice_amount = roll.amount.to_string();
+                                    let outcome = Outcome::new(
+                                        &roll, 
+                                        &self.critical, 
+                                        match self.outcome_bonus.parse::<u32>() {
+                                            Ok(n) => n,
+                                            Err(_) => 0
+                                        },
+                                        false
+                                    );
+                                    self.rolls.insert(0, outcome);
+                                }
+                                ui.label("Type: ");
+                                ui.text_edit_singleline(&mut self.dice_type);
+                            });
+                            ui.label("Amount: ");
+                            ui.text_edit_singleline(&mut self.dice_amount);
+                            ui.label("Bonus: ");
+                            ui.text_edit_singleline(&mut self.outcome_bonus);
+                            ui.label("Difficulty DC: ");
+                            ui.text_edit_singleline(&mut self.difficulty_dc)
+                    }).response.on_hover_ui_at_pointer(|ui| {
+                        for (idx, roll) in self.rolls.iter().enumerate() {
+                            if idx == 0 {
+                                ui.strong(format!("{} - result: {}", roll.roll_description, roll.base_result));
+                            }
+                            else {
+                                ui.label(format!("{} - result: {}", roll.roll_description, roll.base_result));
+                            }
+                        }
+                        if self.rolls.len() > 10 { // See only the 10 most recent rolls
+                            self.rolls.pop();
+                        } 
+                    });
                     ui.collapsing(creation_panel_display, |ui| {
                         ui.horizontal_top(|ui| {
                             if ui.button("Story").clicked() {
@@ -398,23 +467,50 @@ impl eframe::App for TTRPGMaker {
                             }
                         });
                         //TODO generate different element creation contexts based on the button clicks
-                        ui.text_edit_multiline(&mut self.new_text);
-                        if ui.button("Save").clicked() && Some(&self.selected_el.0).is_some() {
-                            let db = format!("saves/{}", self.selected.as_deref().unwrap());
-                            let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
-                            self.new_text.clear();
-                            new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save damnit!");
-                            println!("ID of saved story {}", self.selected_el.1);
-                            for key in self.loaded_ttrpg.clone().into_iter() {
-                                if key.0 == self.selected_el.0 {
-                                    let key_string = key.0.as_str();
-                                    let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
-                                    self.loaded_ttrpg.remove(key_string);
-                                    self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
-                                    self.selected_ttrpg.clear();
+                        let db = format!("saves/{}", self.selected.as_deref().unwrap());
+                        if self.create_el == "Story".to_string() {
+                            ui.label("Story Creation");
+                            if ui.button("Save").clicked() && Some(&self.selected_el.0).is_some() {
+                                let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
+                                self.new_text.clear();
+                                new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save...");
+                                println!("ID of saved story {}", self.selected_el.1);
+                                for key in self.loaded_ttrpg.clone().into_iter() {
+                                    if key.0 == self.selected_el.0 {
+                                        let key_string = key.0.as_str();
+                                        let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
+                                        self.loaded_ttrpg.remove(key_string);
+                                        self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
+                                        self.selected_ttrpg.clear();
+                                    }
                                 }
                             }
+                        } else if self.create_el == "Attribute".to_string() {
+                            ui.label("Attribute Creation");
+                            if ui.button("Save Attribute").clicked() {
+                            
+                            }
+                        } else if self.create_el == "Skill".to_string() {
+                           ui.label("Skill Creation"); 
+                        } else if self.create_el == "Counter".to_string() {
+                           ui.label("Counter Creation"); 
+                        } else if self.create_el == "Table".to_string() {
+                           ui.label("Table Creation"); 
+                        } else {
+                            panic!("This should not happen");
                         }
+
+                        ui.text_edit_multiline(&mut self.new_text).on_hover_ui_at_pointer(|ui| {
+                            if self.new_text.len() <= 0 {
+                                ui.label("Each element requires a description");
+                            }
+                            else {
+                                ui.label(format!("Character Count: {}", self.new_text.len()));
+                            }
+                        });
+
+
+
                     });
                 });
             egui::SidePanel::right("View_Edit")
@@ -431,7 +527,7 @@ impl eframe::App for TTRPGMaker {
                 });
         }
         else if self.view_edit.get() == false && self.selected.is_some() {
-            let creation_panel_display = if Some(self.selected_el.1).is_some() {
+            let creation_panel_display = if self.selected_el.0.len() > 0 {
                 format!("Creation Panel (Selected: {})", &self.selected_el.0)
             }
             else {
