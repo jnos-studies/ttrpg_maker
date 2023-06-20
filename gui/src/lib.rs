@@ -23,7 +23,7 @@ pub struct TTRPGMaker {
     elements: HashMap<String, Cell<bool>>,
     loaded_ttrpg: HashMap<String, Returned_TTRPG>,
     new_text: String,
-    edit_text: String,
+    edit_el: (u32, <Story as SaveLoad>::Entity),
     selected_ttrpg: Vec<(u32, ElementsEnum)>,
 }
 
@@ -52,7 +52,7 @@ impl Default for TTRPGMaker
         let elements = HashMap::new();
         let loaded_ttrpg = HashMap::new();
         let new_text = "".to_string();
-        let edit_text = "".to_string();
+        let edit_el = (0 as u32, Story::new(TypedNarrative::new("".to_string())));
         let selected_ttrpg = Vec::new();
         
         Self
@@ -69,7 +69,7 @@ impl Default for TTRPGMaker
             elements,
             loaded_ttrpg,
             new_text,
-            edit_text,
+            edit_el,
             selected_ttrpg,
         }
     }
@@ -394,13 +394,13 @@ impl eframe::App for TTRPGMaker {
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
                     ui.label("Your existing stories");
-                     generate_view_edit(
+                     let _result = generate_view_edit(
                          ui, 
                          &mut self.view_edit.get(),
                          &mut self.selected_ttrpg, 
-                         &mut self.edit_text,
+                         &mut self.edit_el,
                          format!("saves/{}", self.selected.as_deref().unwrap()).as_str(),
-                         );
+                         ).unwrap();
                 });
         }
         else if self.view_edit.get() == false && self.selected.is_some() {
@@ -429,15 +429,21 @@ impl eframe::App for TTRPGMaker {
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
                     ui.label("Your existing stories");
-                     generate_view_edit(
+                     let result = generate_view_edit(
                          ui, 
                          &mut self.view_edit.get(),
                          &mut self.selected_ttrpg, 
-                         &mut self.edit_text,
+                         &mut self.edit_el,
                          format!("saves/{}", self.selected.as_deref().unwrap()).as_str(),
-                         );
+                         ).unwrap();
+                     // if result is ever true, reload the selected ttrpg (repetative code)
+                     if result {
+                        let clone_key = self.selected_el.0.clone();
+                        self.loaded_ttrpg.remove(&clone_key);
+                        let load_the_ttrpg_el = reload_ttrpg(clone_key.as_str(), &self.selected);
+                        self.loaded_ttrpg.insert(clone_key, load_the_ttrpg_el);
+                     }
                 });
-
         }
 
         if self.selected.is_some()
@@ -457,7 +463,8 @@ fn reload_ttrpg (key: &str, db_selected_path: &Option<String>) -> Returned_TTRPG
 }
 // Helper function for view_edit that returns the ui to generate depending on conditions provided
 // by the bool check
-fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: &mut Vec<(u32, ElementsEnum)>, edit_text: &mut String, db_path: &str) { 
+fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: &mut Vec<(u32, ElementsEnum)>, edit_el: &mut (u32, <Story as SaveLoad>::Entity), db_path: &str) -> Option<bool> {
+    let mut result: bool = false;
     for elem in selected_enum_vector {
         match (elem.0, elem.1.clone()) {
             (id ,ElementsEnum::Story(mut s)) => {
@@ -471,40 +478,41 @@ fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: 
                         .to_string()
                     }
                     else {
-                        "Text provided was too short!".to_string()
+                        format!("{} Text provided was too short!", &id)
                     };
                 ui.push_id(story_summary.clone(), |ui| {
                     let view_text = egui::RichText::new(&story_summary).size(14.0);
                     let view_text_raw = egui::RichText::new(&s.raw_narration.clone()).size(14.0);
                     if *view == true {
                         let collapsing_ui = egui::CollapsingHeader::new(view_text);
-                        collapsing_ui.show(ui, |ui| {
+                        if collapsing_ui.show(ui, |ui| {
                             ui.strong(view_text_raw);
-                        });
-                    }
-                    else {
-                        ui.strong(view_text);
-                        if ui.text_edit_multiline(edit_text).gained_focus() {
-                            println!("Gained focus: {:?} ID: {}", s.summarized.summary.get(&0).unwrap().text, &id);
-                            *edit_text = s.raw_narration.to_string();
+                        }).fully_open() {
+                            *edit_el = (id, s.clone());
                         }
-
-                        
+                    }
+                    else if &edit_el.0 == &id {
+                        ui.strong(view_text);
+                        ui.text_edit_multiline(&mut edit_el.1.raw_narration);
+                        //println!("Gained focus: ID: {}", &id);
                         ui.horizontal(|ui| {
                             if ui.button("Save and Update").clicked() {
-                                let update_entity = Story::new(TypedNarrative::new(s.raw_narration.clone()));
-                                s.update(db_path, id.clone(), update_entity).unwrap();
+                                let update_entity = Story::new(TypedNarrative::new(edit_el.1.raw_narration.clone()));
+                                s.update(db_path, id.clone(), update_entity.clone()).unwrap();
+                                s = update_entity;
+                                result = true;
                             }
                         });
                     }
                 });
             },
-            (id, ElementsEnum::Attribute(mut a)) => {},
-            (id, ElementsEnum::Skill(mut s)) => {},
-            (id, ElementsEnum::Counter(mut c)) => {},
-            (id, ElementsEnum::Table(mut t)) => {}
+            (id, ElementsEnum::Attribute(a)) => {},
+            (id, ElementsEnum::Skill(s)) => {},
+            (id, ElementsEnum::Counter(c)) => {},
+            (id, ElementsEnum::Table(t)) => {}
         }
     }
+    Some(result)
 }
 
 pub fn start_app_main() -> Result<(), eframe::Error>
