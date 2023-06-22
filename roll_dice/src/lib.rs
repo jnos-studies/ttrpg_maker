@@ -104,16 +104,18 @@ impl Outcome {
         let difficulty = if opposition.attribute == true
                         {opposition.base_result.clone()} else {difficulty};
         
-        let winner: bool; //shadow variable for the if else statement
-        
-        if self.critical == 20 {
-            winner = if self.base_result >= difficulty && self.base_result >= opposition.base_result 
-                        {true} else {false}
-        }
-        else {
-            winner = if self.base_result <= difficulty && self.base_result <= opposition.base_result
-                        {true} else {false}
-        }
+        let winner = match opposition.attribute {
+            true => if self.critical == 20 {
+                self.base_result >= difficulty && self.base_result >= opposition.base_result
+            } else {
+                self.base_result <= difficulty && self.base_result <= opposition.base_result
+            },
+            false => if self.critical == 20 {
+                self.base_result >= difficulty
+            } else {
+                self.base_result <= difficulty
+            }
+        };
 
         (winner, difficulty)
     }

@@ -437,11 +437,42 @@ impl eframe::App for TTRPGMaker {
                             ui.text_edit_singleline(&mut self.difficulty_dc)
                     }).response.on_hover_ui_at_pointer(|ui| {
                         for (idx, roll) in self.rolls.iter().enumerate() {
+                            let success_of_roll = roll.success_of_roll(
+                                &Outcome::new(&Roll::new(
+                                        match self.dice_type.parse::<u32>() {
+                                            Ok(n) => n,
+                                            Err(_) => 0
+                                        },
+                                        match self.dice_amount.parse::<u32>() {
+                                            Ok(n) => n,
+                                            Err(_) => 0
+                                        },
+                                        ), &self.critical, match self.outcome_bonus.parse::<u32>() {
+                                    Ok(n) => n, 
+                                    Err(_) => 0
+                                }, false), 
+                                match self.difficulty_dc.parse::<u32>() {
+                                    Ok(n) => n,
+                                    Err(_) => {
+                                        match self.critical {
+                                            Critical::Twenty => 1,
+                                            Critical::One => 20
+                                        }
+                                    }
+                                }
+                            );
+
+                            let success_message = if success_of_roll.0 == true {
+                                format!("Success against DC {}!", success_of_roll.1)
+                            } else {
+                                format!("Failure against DC {}!", success_of_roll.1)
+                            };
+
                             if idx == 0 {
-                                ui.strong(format!("{} - result: {}", roll.roll_description, roll.base_result));
+                                ui.strong(format!("{} = {}, {}", roll.roll_description, roll.base_result, success_message));
                             }
                             else {
-                                ui.label(format!("{} - result: {}", roll.roll_description, roll.base_result));
+                                ui.label(format!("{} = {}, {}", roll.roll_description, roll.base_result, success_message));
                             }
                         }
                         if self.rolls.len() > 10 { // See only the 10 most recent rolls
@@ -470,7 +501,7 @@ impl eframe::App for TTRPGMaker {
                         let db = format!("saves/{}", self.selected.as_deref().unwrap());
                         if self.create_el == "Story".to_string() {
                             ui.label("Story Creation");
-                            if ui.button("Save").clicked() && Some(&self.selected_el.0).is_some() {
+                            if ui.button("Save").clicked() {
                                 let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
                                 self.new_text.clear();
                                 new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save...");
