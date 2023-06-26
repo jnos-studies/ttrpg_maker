@@ -31,7 +31,8 @@ pub struct TTRPGMaker {
     difficulty_dc: String,
     selected_ttrpg: Vec<(u32, ElementsEnum)>,
     critical: Critical,
-    rolls: Box<Vec<Outcome>>
+    rolls: Box<Vec<Outcome>>,
+    element_expand: Cell<bool>
 }
 
 impl Default for TTRPGMaker
@@ -68,6 +69,7 @@ impl Default for TTRPGMaker
         let selected_ttrpg = Vec::new();
         let critical = Critical::Twenty;
         let rolls = Box::new(Vec::new());
+        let element_expand = Cell::new(true);
 
         
         Self
@@ -92,7 +94,8 @@ impl Default for TTRPGMaker
             difficulty_dc,
             selected_ttrpg,
             critical,
-            rolls
+            rolls,
+            element_expand
         }
     }
 }
@@ -319,7 +322,7 @@ impl eframe::App for TTRPGMaker {
         if self.load_elements.get()
         {
             egui::SidePanel::left("Elements")
-                .show(ctx, |ui| {
+                .show_animated(ctx, self.element_expand.get(), |ui| {
                 ui.set_width(ctx.available_rect().width() / 5.0);
                 let scroll_area = egui::ScrollArea::vertical();
                 scroll_area.show(ui, |ui| {
@@ -328,9 +331,6 @@ impl eframe::App for TTRPGMaker {
                     {
                         ui.collapsing(key, |ui|
                         {
-                            // Selected ttrpgs get loaded here, but only to count the number of
-                            // elements in it. This is not that efficient as it gets loaded twice
-                            // essentially, but atm it is just to make it work.
                             ui.horizontal_top(|ui|
                             {
                                 let button = egui::Button::new("View");
@@ -427,10 +427,14 @@ impl eframe::App for TTRPGMaker {
                                     self.rolls.insert(0, outcome);
                                 }
                                 ui.label("Type: ");
-                                ui.text_edit_singleline(&mut self.dice_type);
+                                if ui.text_edit_singleline(&mut self.dice_type).changed() {
+                                    self.rolls.clear(); // Need to clear for the randomizer to work
+                                };
                             });
                             ui.label("Amount: ");
-                            ui.text_edit_singleline(&mut self.dice_amount);
+                            if ui.text_edit_singleline(&mut self.dice_amount).changed() {
+                                self.rolls.clear();
+                            }
                             ui.label("Bonus: ");
                             ui.text_edit_singleline(&mut self.outcome_bonus);
                             ui.label("Difficulty DC: ");
@@ -539,14 +543,14 @@ impl eframe::App for TTRPGMaker {
                                 ui.label(format!("Character Count: {}", self.new_text.len()));
                             }
                         });
-
-
-
                     });
                 });
-            egui::SidePanel::right("View_Edit")
+            egui::SidePanel::left("View_Edit")
                 .exact_width(ctx.available_rect().width())
+                .show_separator_line(false)
                 .show(ctx, |ui| {
+                    let scrollabe_area = egui::ScrollArea::vertical();
+                    scrollabe_area.show(ui, |ui| {
                     ui.label("Your existing stories");
                      let _result = generate_view_edit(
                          ui, 
@@ -555,6 +559,7 @@ impl eframe::App for TTRPGMaker {
                          &mut self.edit_el,
                          format!("saves/{}", self.selected.as_deref().unwrap()).as_str(),
                          ).unwrap();
+                    });
                 });
         }
         else if self.view_edit.get() == false && self.selected.is_some() {
@@ -585,9 +590,11 @@ impl eframe::App for TTRPGMaker {
                         }
                     });
                 });
-            egui::SidePanel::right("View_Edit")
+            egui::SidePanel::left("View_Edit")
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
+                    let scrollable_area = egui::ScrollArea::vertical();
+                    scrollable_area.show(ui, |ui| {
                     ui.label("Your existing stories");
                      let result = generate_view_edit(
                          ui, 
@@ -604,6 +611,8 @@ impl eframe::App for TTRPGMaker {
                         self.loaded_ttrpg.insert(clone_key, load_the_ttrpg_el);
                         self.selected_ttrpg.clear();
                      }
+
+                    });
                 });
         }
 
@@ -631,14 +640,18 @@ fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: 
             (id ,ElementsEnum::Story(mut s)) => {
                 //TODO Future development is to use a Summarizer to summarize a large body of text
                 //into a sentence.
-                let story_summary = &s.raw_narration[0..(s.raw_narration.len() / 3)].to_string();
-                ui.push_id(format!("{} - {}", &id, story_summary.clone()), |ui| {
+                let story_summary = format!(
+                    "Word Count: {}",
+                    &s.raw_narration.split(" ").count()
+                    );
+                ui.push_id(format!("{} - {}", &id, &story_summary.clone()), |ui| {
                     let view_text = egui::RichText::new(story_summary).size(14.0);
-                    let view_text_raw = egui::RichText::new(&s.raw_narration.clone()).size(14.0);
+                    let view_text_raw = egui::RichText::new(&s.raw_narration.clone()).size(18.0);
                     if *view == true {
                         let collapsing_ui = egui::CollapsingHeader::new(view_text);
                         if collapsing_ui.show(ui, |ui| {
-                            ui.strong(view_text_raw);
+                            ui.label(view_text_raw);
+                            //ui.add(egui::Label::new(egui::WidgetText::RichText(view_text_raw)));
                         }).fully_open() {
                             *edit_el = (id, s.clone());
                         }
