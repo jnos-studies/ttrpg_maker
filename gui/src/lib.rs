@@ -387,7 +387,6 @@ impl eframe::App for TTRPGMaker {
             });
         }
         //Is constantly checking if it needs to save a story
-
         if self.view_edit.get() // If true or false
         {
             egui::TopBottomPanel::top("Creation Panel")
@@ -505,7 +504,7 @@ impl eframe::App for TTRPGMaker {
                         let db = format!("saves/{}", self.selected.as_deref().unwrap());
                         if self.create_el == "Story".to_string() {
                             ui.label("Story Creation");
-                            if ui.button("Save").clicked() {
+                            if ui.button("Save Story").clicked() {
                                 let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
                                 self.new_text.clear();
                                 new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save...");
@@ -563,33 +562,6 @@ impl eframe::App for TTRPGMaker {
                 });
         }
         else if self.view_edit.get() == false && self.selected.is_some() {
-            let creation_panel_display = if self.selected_el.0.len() > 0 {
-                format!("Creation Panel (Selected: {})", &self.selected_el.0)
-            }
-            else {
-                format!("Creation Panel (Selected: {})", "None")
-            };
-            egui::TopBottomPanel::top("Creation Panel")
-                .show(ctx, |ui| {
-                    ui.collapsing(creation_panel_display, |ui| {
-                        ui.text_edit_multiline(&mut self.new_text);
-                        if ui.button("Save").clicked() {
-                            let db = format!("saves/{}", self.selected.as_deref().unwrap());
-                            let new_story = Story::new(TypedNarrative::new(self.new_text.clone()));
-                            self.new_text.clear();
-                            new_story.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save damnit!");
-                            for key in self.loaded_ttrpg.clone().into_iter() {
-                                if key.0 == self.selected_el.0 {
-                                    let key_string = key.0.as_str();
-                                    let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
-                                    self.loaded_ttrpg.remove(key_string);
-                                    self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
-                                    self.selected_ttrpg.clear();
-                                }
-                            }
-                        }
-                    });
-                });
             egui::SidePanel::left("View_Edit")
                 .exact_width(ctx.available_rect().width())
                 .show(ctx, |ui| {
@@ -633,7 +605,12 @@ fn reload_ttrpg (key: &str, db_selected_path: &Option<String>) -> Returned_TTRPG
 }
 // Helper function for view_edit that returns the ui to generate depending on conditions provided
 // by the bool check
-fn generate_view_edit(ui: &mut egui::Ui, view: &mut bool, selected_enum_vector: &mut Vec<(u32, ElementsEnum)>, edit_el: &mut (u32, <Story as SaveLoad>::Entity), db_path: &str) -> Option<bool> {
+fn generate_view_edit(
+    ui: &mut egui::Ui,
+    view: &mut bool, 
+    selected_enum_vector: &mut Vec<(u32, ElementsEnum)>, 
+    edit_el: &mut (u32, <Story as SaveLoad>::Entity), 
+    db_path: &str) -> Option<bool> {
     let mut result: bool = false;
     for elem in selected_enum_vector {
         match (elem.0, elem.1.clone()) {
