@@ -60,6 +60,7 @@ impl Returned_TTRPG
         }
         None
     }
+    // TODO Create loading for each type of ttrpg element
     pub fn load_elements(mut self, database_path: &str) -> Option<Returned_TTRPG>{
         let connection = sqlite::Connection::open(database_path).unwrap();
         connection.iterate(format!("SELECT * FROM stories WHERE ttrpg_id = {}", self.id), |row| {
@@ -67,10 +68,37 @@ impl Returned_TTRPG
                 (
                     row[0].1.unwrap().parse().unwrap(),
                     Story::new(TypedNarrative::new(row[2].1.unwrap().to_string()))
-                ));
+                )
+            );
             true
         }).unwrap();
-    Some(self)
+        connection.iterate(format!("SELECT * FROM attributes WHERE ttrpg_id = {}", self.id),|row| {
+            self.attributes.push(
+                (
+                    row[0].1.unwrap().parse().unwrap(), 
+                    Attribute::new(
+                        TypedNarrative::new(row[2].1.unwrap().to_string()),
+                        Outcome {
+                            roll_description:  row[3].1.unwrap().to_string(),
+                            base_result: row[4].1.unwrap().parse().unwrap(), 
+                            max: 1, 
+                            min: 1, 
+                            attribute: true, 
+                            critical: 20
+                        }
+                    )
+                )
+            );
+            true
+        }).unwrap();
+        // TODO
+        //connection.iterate(format!("SELECT * FROM skills WHERE ttrpg_id = {}", self.id), |row| { true }).unwrap();
+        //connection.iterate(format!("SELECT * FROM counters WHERE ttrpg_id = {}", self.id), |row| { true }).unwrap();
+        //connection.iterate(format!("SELECT * FROM tables WHERE ttrpg_id = {}", self.id), |row| { true }).unwrap();
+
+
+
+        Some(self)
     }
 }
 

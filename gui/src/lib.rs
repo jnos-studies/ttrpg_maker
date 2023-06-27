@@ -1,5 +1,5 @@
+use eframe::egui::{TextBuffer, Pos2};
 use eframe::egui;
-use eframe::egui::TextBuffer;
 use entities::{Story, Attribute, Skill, Counter, Table, ElementsEnum, SaveLoad};
 use narratives::TypedNarrative;
 use std::env;
@@ -102,6 +102,15 @@ impl Default for TTRPGMaker
 impl eframe::App for TTRPGMaker {
     
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Cursor tracking
+        let pos = track_cursor_position(ctx);
+        if pos.x < 5.0 && pos.x > 0.0 && self.element_expand.get() == false {
+            self.element_expand.set(true);
+        }
+        else if pos.x > 150.0 && self.element_expand.get() {
+            self.element_expand.set(false);
+        }
+        //println!("Cursor: ({}, {})", pos.x, pos.y); // Debugging
         // Create a UI with a label and a combo box
         egui::TopBottomPanel::top("tabs")
             .show_separator_line(false)
@@ -405,7 +414,7 @@ impl eframe::App for TTRPGMaker {
                                     let roll = Roll::new(
                                         match self.dice_type.parse::<u32>() {
                                             Ok(n) => n,
-                                            Err(_) => 20
+                                            Err(_) => 21
                                         },
                                         match self.dice_amount.parse::<u32>() {
                                             Ok(n) => n,
@@ -439,6 +448,8 @@ impl eframe::App for TTRPGMaker {
                             ui.label("Difficulty DC: ");
                             ui.text_edit_singleline(&mut self.difficulty_dc)
                     }).response.on_hover_ui_at_pointer(|ui| {
+                        // TODO push to the all_rolls table to store rolls and create a UI for
+                        // displaying a history of all rolls
                         for (idx, roll) in self.rolls.iter().enumerate() {
                             let success_of_roll = roll.success_of_roll(
                                 &Outcome::new(&Roll::new(
@@ -450,10 +461,14 @@ impl eframe::App for TTRPGMaker {
                                             Ok(n) => n,
                                             Err(_) => 0
                                         },
-                                        ), &self.critical, match self.outcome_bonus.parse::<u32>() {
-                                    Ok(n) => n, 
-                                    Err(_) => 0
-                                }, false), 
+                                        ), 
+                                    &self.critical, 
+                                    match self.outcome_bonus.parse::<u32>() {
+                                        Ok(n) => n, 
+                                        Err(_) => 0
+                                    }, 
+                                    false
+                                ), 
                                 match self.difficulty_dc.parse::<u32>() {
                                     Ok(n) => n,
                                     Err(_) => {
@@ -501,6 +516,8 @@ impl eframe::App for TTRPGMaker {
                             }
                         });
                         //TODO generate different element creation contexts based on the button clicks
+                        //TODO Also Need to find a less code intensive way to refresh UI data from
+                        //the database
                         let db = format!("saves/{}", self.selected.as_deref().unwrap());
                         if self.create_el == "Story".to_string() {
                             ui.label("Story Creation");
@@ -522,7 +539,39 @@ impl eframe::App for TTRPGMaker {
                         } else if self.create_el == "Attribute".to_string() {
                             ui.label("Attribute Creation");
                             if ui.button("Save Attribute").clicked() {
-                            
+                                let new_attribute = Attribute::new(
+                                    TypedNarrative::new(self.new_text.clone()), 
+                                    Outcome::new(
+                                        &Roll::new(
+                                            match self.dice_type.parse::<u32>() {
+                                                Ok(n) => n,
+                                                Err(_) => 20
+                                            },
+                                            match self.dice_amount.parse::<u32>() {
+                                                Ok(n) => n,
+                                                Err(_) => 1
+                                            }
+                                        ),
+                                    &self.critical, 
+                                    match self.outcome_bonus.parse::<u32>() {
+                                        Ok(n) => n, 
+                                        Err(_) => 0
+                                    }, 
+                                    true
+                                    )
+                                );
+                                self.new_text.clear();
+                                new_attribute.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save...");
+                                println!("ID of saved attribute {}", self.selected_el.1);
+                                for key in self.loaded_ttrpg.clone().into_iter() {
+                                    if key.0 == self.selected_el.0 {
+                                        let key_string = key.0.as_str();
+                                        let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
+                                        self.loaded_ttrpg.remove(key_string);
+                                        self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
+                                        self.selected_ttrpg.clear();
+                                    }
+                                }
                             }
                         } else if self.create_el == "Skill".to_string() {
                            ui.label("Skill Creation"); 
@@ -594,6 +643,12 @@ impl eframe::App for TTRPGMaker {
             env::set_var("DATABASE_PATH", format!("saves/{}",selected_ref));
         }
     }
+}
+
+// Function to track the users cursor position in relation to the UI. Used to toggle truthy values
+// in the application
+fn track_cursor_position(ctx: &egui::Context) -> Pos2 {
+    if let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) {pos} else {egui::pos2(0.0, 0.0)}
 }
 
 // Helper function to reload Returned_TTRPG into ui from database
