@@ -9,11 +9,12 @@ pub struct Returned_TTRPG
 {
     pub name: String,
     pub id: u32,
-    pub stories: Vec<(u32, entities::Story)>,
-    pub attributes: Vec<(u32, entities::Attribute)>,
-    pub skills: Vec<(u32, entities::Skill)>,
-    pub counters: Vec<(u32, entities::Counter)>,
-    pub tables: Vec<(u32, entities::Table)>
+    pub stories: Vec<(u32, Story)>,
+    pub attributes: Vec<(u32, Attribute)>,
+    pub skills: Vec<(u32, Skill)>,
+    pub counters: Vec<(u32, Counter)>,
+    pub tables: Vec<(u32, Table)>,
+    pub rolls: Vec<(u32, Outcome)>
 }
 
 impl Returned_TTRPG
@@ -36,10 +37,11 @@ impl Returned_TTRPG
             attributes: Vec::new(),
             skills: Vec::new(),
             counters: Vec::new(),
-            tables: Vec::new()
+            tables: Vec::new(),
+            rolls: Vec::new()
         };
         // Gets database names
-        connection.iterate("SELECT * FROM ttrpgs", |row| {
+        connection.iterate("SELECT * FROM ttrpgs", |row: &[(&str, Option<&str>)]| {
             if row[2].1.unwrap() == name {
                 ttrpg.name = name.to_string().clone();
                 ttrpg.id = row[0].1.unwrap().parse::<u32>().unwrap().clone();
@@ -63,7 +65,7 @@ impl Returned_TTRPG
     // TODO Create loading for each type of ttrpg element
     pub fn load_elements(mut self, database_path: &str) -> Option<Returned_TTRPG>{
         let connection = sqlite::Connection::open(database_path).unwrap();
-        connection.iterate(format!("SELECT * FROM stories WHERE ttrpg_id = {}", self.id), |row| {
+        connection.iterate(format!("SELECT * FROM stories WHERE ttrpg_id = {}", self.id), |row: &[(&str, Option<&str>)]| {
             self.stories.push(
                 (
                     row[0].1.unwrap().parse().unwrap(),
@@ -72,7 +74,7 @@ impl Returned_TTRPG
             );
             true
         }).unwrap();
-        connection.iterate(format!("SELECT * FROM attributes WHERE ttrpg_id = {}", self.id),|row| {
+        connection.iterate(format!("SELECT * FROM attributes WHERE ttrpg_id = {}", self.id),|row: &[(&str, Option<&str>)]| {
             self.attributes.push(
                 (
                     row[0].1.unwrap().parse().unwrap(), 
@@ -92,11 +94,73 @@ impl Returned_TTRPG
             true
         }).unwrap();
         // TODO
-        //connection.iterate(format!("SELECT * FROM skills WHERE ttrpg_id = {}", self.id), |row| { true }).unwrap();
-        //connection.iterate(format!("SELECT * FROM counters WHERE ttrpg_id = {}", self.id), |row| { true }).unwrap();
-        //connection.iterate(format!("SELECT * FROM tables WHERE ttrpg_id = {}", self.id), |row| { true }).unwrap();
+        connection.iterate(format!("SELECT * FROM skills WHERE ttrpg_id = {}", self.id), |row: &[(&str, Option<&str>)]| { 
+            self.skills.push(
+                (
+                    row[0].1.unwrap().parse().unwrap(),
+                    Skill::new(
+                        TypedNarrative::new(row[2].1.unwrap().to_string()),
+                        Roll {
+                            dice_label: row[3].1.unwrap().to_string(),
+                            dice: row[4].1.unwrap().parse().unwrap(), 
+                            amount: row[5].1.unwrap().parse().unwrap() 
+                        }
+                    )
+                )
+            );
+            true
+         }).unwrap();
+        connection.iterate(format!("SELECT * FROM counters WHERE ttrpg_id = {}", self.id), |row: &[(&str, Option<&str>)]| { 
+            self.counters.push(
+                (
+                    row[0].1.unwrap().parse().unwrap(),
+                    Counter::new(
+                        TypedNarrative::new(row[2].1.unwrap().to_string()),
+                        row[3].1.unwrap().parse().unwrap()
+                    )
+                )
+            );
+            true 
+        }).unwrap();
 
+        connection.iterate(format!("SELECT * FROM tables WHERE ttrpg_id = {}", self.id), |row: &[(&str, Option<&str>)]| { 
+            self.tables.push(
+                (
+                    row[0].1.unwrap().parse().unwrap(),
+                    Table::new(
+                        TypedNarrative::new(row[2].1.unwrap().to_string()),
+                        TabledNarratives {
+                            table: TabledNarratives::values_from_json(row[3].1.unwrap().to_string())
+                        }
+                    )
+                )
+            );
 
+            true 
+        }).unwrap();
+
+        connection.iterate(format!("SELECT * FROM all_rolls WHERE ttrpg_id = {}", self.id), |row: &[(&str, Option<&str>)]| {
+            self.rolls.push(
+                (
+                    row[0].1.unwrap().parse().unwrap(),
+                    Outcome::new(
+                        &Roll::new(
+                            row[4].1.unwrap().parse().unwrap(),
+                            row[5].1.unwrap().parse().unwrap()
+                        ),
+                        match env::var("CRITICAL_SETTING").unwrap().parse::<u32>().unwrap() {
+                            20 => &Critical::Twenty,
+                            1 => &Critical::One,
+                            _ => &Critical::Twenty // Defaults to critical 20 dice type
+                        },
+                        row[6].1.unwrap().parse().unwrap(),
+                        false
+                    )
+                )
+            );
+            
+            true
+        }).unwrap();
 
         Some(self)
     }
@@ -132,6 +196,7 @@ pub fn database_setup(database_path: &str)
             dice_label TEXT NOT NULL,
             dice INTEGER NOT NULL,
             amount INTEGER NOT NULL,
+            bonus INTEGER NOT NULL,
             FOREIGN KEY (ttrpg_id) REFERENCES ttrpg(id)
         );
 
@@ -142,7 +207,7 @@ pub fn database_setup(database_path: &str)
             dice_label TEXT NOT NULL,
             dice INTEGER NOT NULL,
             amount INTEGER NOT NULL,
-            FOREIGN KEY (ttrpg_id) REFERENCES ttrpg(id),
+            FOREIGN KEY (ttrpg_id) REFERENCES ttrpg(id)
         );
   
         CREATE TABLE counters (
@@ -162,11 +227,7 @@ pub fn database_setup(database_path: &str)
         ); 
     ";
 
-    match connection.execute(query) {
-        Ok(val) => val,
-        //FIXME or log me. This is not a very serious error
-        Err(e) => println!("{:#?}", e)
-    }
+    connection.execute(query).unwrap();
 }
 
 pub fn get_existing_ttrpgs_from_database(database_path: &str) -> Vec<String>

@@ -63,7 +63,7 @@ impl TabledNarratives {
         serde_json::to_string(&self.table).unwrap()
     }
     // Use to Deserialize table values from it's Serialized json value
-    pub fn values_from_json(&self, json: String) ->  HashMap<(u32, u32), String> {
+    pub fn values_from_json(json: String) ->  HashMap<(u32, u32), String> {
         serde_json::from_str(&json).unwrap()
     }
 
