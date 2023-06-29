@@ -1,7 +1,7 @@
 use eframe::egui::{TextBuffer, Pos2};
 use eframe::egui;
 use entities::{Story, Attribute, Skill, Counter, Table, ElementsEnum, SaveLoad};
-use narratives::TypedNarrative;
+use narratives::{TypedNarrative, TabledNarratives};
 use std::env;
 use store_rpg::*;
 use roll_dice::{Critical, Outcome, Roll};
@@ -32,7 +32,11 @@ pub struct TTRPGMaker {
     selected_ttrpg: Vec<(u32, ElementsEnum)>,
     critical: Critical,
     rolls: Box<Vec<Outcome>>,
-    element_expand: Cell<bool>
+    element_expand: Cell<bool>,
+    counter_creation: String,
+    table_creation_lower: String,
+    table_creation_higher: String,
+    table_creation_full: Vec<((u32, u32), String)> // [(lower, higher), text_content]
 }
 
 impl Default for TTRPGMaker
@@ -70,6 +74,10 @@ impl Default for TTRPGMaker
         let critical = Critical::Twenty;
         let rolls = Box::new(Vec::new());
         let element_expand = Cell::new(true);
+        let counter_creation = "".to_string();
+        let table_creation_lower = "".to_string();
+        let table_creation_higher = "".to_string();
+        let table_creation_full = Vec::new();
 
         
         Self
@@ -95,7 +103,11 @@ impl Default for TTRPGMaker
             selected_ttrpg,
             critical,
             rolls,
-            element_expand
+            element_expand,
+            counter_creation,
+            table_creation_lower,
+            table_creation_higher,
+            table_creation_full
         }
     }
 }
@@ -575,12 +587,120 @@ impl eframe::App for TTRPGMaker {
                             }
                         } else if self.create_el == "Skill".to_string() {
                            ui.label("Skill Creation"); 
+                           if ui.button("Save Skill").clicked() {
+                                let new_skill = Skill::new(
+                                    TypedNarrative::new(self.new_text.clone()),
+                                    Roll::new(
+                                        match self.dice_type.parse::<u32>() {
+                                            Ok(n) => n,
+                                            Err(_) => 20
+                                        },
+                                        match self.dice_amount.parse::<u32>() {
+                                            Ok(n) => n,
+                                            Err(_) => 1
+                                        }
+                                    )
+                                );
+                                println!("ID of saved skill {}", self.selected_el.1);
+                                self.new_text.clear();
+                                new_skill.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save...");
+                                for key in self.loaded_ttrpg.clone().into_iter() {
+                                    if key.0 == self.selected_el.0 {
+                                        let key_string = key.0.as_str();
+                                        let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
+                                        self.loaded_ttrpg.remove(key_string);
+                                        self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
+                                        self.selected_ttrpg.clear();
+                                    }
+                                }
+                           }
                         } else if self.create_el == "Counter".to_string() {
-                           ui.label("Counter Creation"); 
+                           ui.label("Counter Creation");
+                           ui.horizontal(|ui| {
+                                ui.label("Counter");
+                                ui.text_edit_singleline(&mut self.counter_creation);
+                           });
+                           if ui.button("Save Counter").clicked() {
+                                let new_counter = Counter::new(
+                                    TypedNarrative::new(self.new_text.clone()),
+                                    match self.counter_creation.parse().unwrap() {
+                                        n => n,
+                                        _ => 0
+                                    }
+                                );
+                                println!("ID of saved counter {}", self.selected_el.1);
+                                self.new_text.clear();
+                                self.counter_creation.clear();
+                                new_counter.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save...");
+                                for key in self.loaded_ttrpg.clone().into_iter() {
+                                    if key.0 == self.selected_el.0 {
+                                        let key_string = key.0.as_str();
+                                        let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
+                                        self.loaded_ttrpg.remove(key_string);
+                                        self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
+                                        self.selected_ttrpg.clear();
+                                    }
+                                }
+                           } 
                         } else if self.create_el == "Table".to_string() {
-                           ui.label("Table Creation"); 
+                           ui.label("Table Creation");
+                           // Creation of table elements which are then previewed in the table_creation_full mutable variable
+                           if ui.button("Save Table").clicked() {
+                                let tabled_narratives = TabledNarratives::new(self.table_creation_full.clone());
+                                let new_table = Table::new(
+                                    TypedNarrative::new(self.new_text.clone()),
+                                    tabled_narratives
+                                );
+                                new_table.save(db.as_str(), self.selected_el.1.clone()).expect("Did not save...");
+                                self.table_creation_full.clear();
+                                for key in self.loaded_ttrpg.clone().into_iter() {
+                                    if key.0 == self.selected_el.0 {
+                                        let key_string = key.0.as_str();
+                                        let reloaded_ttrpg = reload_ttrpg(key_string, &self.selected);
+                                        self.loaded_ttrpg.remove(key_string);
+                                        self.loaded_ttrpg.insert(key.0, reloaded_ttrpg);
+                                        self.selected_ttrpg.clear();
+                                    }
+                                }
+                           }
+                           ui.horizontal(|ui| {
+                                if ui.button("Add Row").clicked() {
+                                    self.table_creation_full.push(
+                                        (
+                                            (
+                                                // FIXME limit the size of the numbers!
+                                                match self.table_creation_lower.parse().unwrap() { //lower
+                                                    n => n,
+                                                    _ => if Some(&self.table_creation_full.last()).is_some() {&self.table_creation_full.last().unwrap().0.0 + 1} else { 0 }
+                                                },
+                                                match self.table_creation_lower.parse().unwrap() { //higher
+                                                    n => n,
+                                                    _ => if Some(&self.table_creation_full.last()).is_some() {&self.table_creation_full.last().unwrap().0.1 + 2} else { 1 }
+                                                },
+                                            ),
+                                            self.new_text.clone()
+                                        )
+                                    );
+                                    self.table_creation_lower.clear();
+                                    self.table_creation_higher.clear();
+                                }
+                                ui.label("Lower Range: ");
+                                ui.text_edit_singleline(&mut self.table_creation_lower);
+                                ui.label("Higher Range: ");
+                                ui.text_edit_singleline(&mut self.table_creation_higher);
+                                ui.group(|ui| {
+                                    for (ranges, text_value) in self.table_creation_full.iter() {
+                                        let lower = ranges.0;
+                                        let higher = ranges.1;
+                                        ui.horizontal_centered(|ui| {
+                                            ui.label(format!("{} - {}", lower, higher));
+                                            ui.strong(text_value);
+                                        });
+                                    }
+                                });
+                           });
                         } else {
-                            panic!("This should not happen");
+                            panic!("Failure of element creation in creation panel");
                         }
 
                         ui.text_edit_multiline(&mut self.new_text).on_hover_ui_at_pointer(|ui| {
