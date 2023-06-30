@@ -673,7 +673,7 @@ impl eframe::App for TTRPGMaker {
                                                     n => n,
                                                     _ => if Some(&self.table_creation_full.last()).is_some() {&self.table_creation_full.last().unwrap().0.0 + 1} else { 0 }
                                                 },
-                                                match self.table_creation_lower.parse().unwrap() { //higher
+                                                match self.table_creation_higher.parse().unwrap() { //higher
                                                     n => n,
                                                     _ => if Some(&self.table_creation_full.last()).is_some() {&self.table_creation_full.last().unwrap().0.1 + 2} else { 1 }
                                                 },
@@ -688,16 +688,18 @@ impl eframe::App for TTRPGMaker {
                                 ui.text_edit_singleline(&mut self.table_creation_lower);
                                 ui.label("Higher Range: ");
                                 ui.text_edit_singleline(&mut self.table_creation_higher);
-                                ui.group(|ui| {
-                                    for (ranges, text_value) in self.table_creation_full.iter() {
-                                        let lower = ranges.0;
-                                        let higher = ranges.1;
-                                        ui.horizontal_centered(|ui| {
-                                            ui.label(format!("{} - {}", lower, higher));
-                                            ui.strong(text_value);
-                                        });
-                                    }
-                                });
+                                if self.table_creation_full.len() > 0 {
+                                    ui.vertical_centered(|ui| {
+                                        for (ranges, text_value) in self.table_creation_full.iter() {
+                                            let lower = ranges.0;
+                                            let higher = ranges.1;
+                                            ui.horizontal_centered(|ui| {
+                                                ui.label(format!("{} - {}", lower, higher));
+                                                ui.strong(text_value);
+                                            });
+                                        }
+                                    });
+                                }
                            });
                         } else {
                             panic!("Failure of element creation in creation panel");

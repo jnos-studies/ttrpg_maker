@@ -46,25 +46,45 @@ pub struct TabledNarratives {
     pub table: HashMap<(u32, u32), String>
 }
 
+
 impl TabledNarratives {
     // 2 values are kept as the key, in order to handle roll limits/ ranges. ie: if a roll is within
     // the range of 1..=10 print etc.
     pub fn new(table: Vec<((u32, u32), String)>) -> TabledNarratives {
-        let hashmap: HashMap<(u32, u32), String> = table.iter().cloned().fold(HashMap::new(), |mut acc, (k, v)| {
-            acc.insert(k, escape_sql(v.as_str()));
-            acc
-        });
-        TabledNarratives {
-            table: hashmap
-        }
+        let hashmap: HashMap<(u32, u32), String> = table.into_iter().collect();
+        TabledNarratives { table: hashmap }
     }
     // Serialize the table values into json to be easily stored in a database
     pub fn values_to_json(&self) -> String {
-        serde_json::to_string(&self.table).unwrap()
+        let map = &self.table;
+        let mut data = Vec::new();
+        for (key, value) in map {
+            let key_str = format!("{},{}", key.0, key.1);
+            let item = serde_json::json!({key_str: value});
+            data.push(item);
+        }
+        let value: serde_json::Value = data.into();
+        serde_json::to_string(&value).unwrap()
     }
     // Use to Deserialize table values from it's Serialized json value
-    pub fn values_from_json(json: String) ->  HashMap<(u32, u32), String> {
-        serde_json::from_str(&json).unwrap()
+    pub fn values_from_json(json_str: &str) ->  HashMap<(u32, u32), String> {
+        let value: serde_json::Value = serde_json::from_str(json_str).unwrap();
+        let mut map = HashMap::new();
+        if let serde_json::Value::Array(items) = value {
+            for item in items {
+                if let serde_json::Value::Object(obj) = item {
+                    for (key_str, value) in obj {
+                        if let Ok((x, y)) = parse_key(&key_str) {
+                            if let serde_json::Value::String(s) = value {
+                                map.insert((x, y), s);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        println!("{:#?}", &map);
+        map
     }
 
     pub fn roll_to_text(&self, roll: &Outcome) -> String {
@@ -82,6 +102,12 @@ impl TabledNarratives {
     }
 }
 
+fn parse_key(key_str: &str) -> Result<(u32, u32), std::num::ParseIntError> {
+    let parts: Vec<&str> = key_str.split(',').collect();
+    let x = parts[0].parse()?;
+    let y = parts[1].parse()?;
+    Ok((x, y))
+}
 
 fn word_frequency(text: &str) -> HashMap<String, f32> {
     let mut frequency = HashMap::new();

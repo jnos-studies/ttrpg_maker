@@ -130,7 +130,7 @@ impl Returned_TTRPG
                     Table::new(
                         TypedNarrative::new(row[2].1.unwrap().to_string()),
                         TabledNarratives {
-                            table: TabledNarratives::values_from_json(row[3].1.unwrap().to_string())
+                            table: TabledNarratives::values_from_json(row[3].1.unwrap())
                         }
                     )
                 )
